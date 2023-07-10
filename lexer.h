@@ -8,17 +8,12 @@
 #include <stdlib.h>
 #include <errno.h>
 
-typedef enum {
-    Load,
-    Play,
-    FUNC_COUNT
-} Func;
-
-
 #define WORD_MAX_SZ 64
 #define STR_MAX_SZ 256
 
 #define BUF_SZ 1024
+
+#define BUF_EOF(buf) ((buf)->pos >= (buf)->size)
 
 typedef struct {
     char *data;
@@ -26,16 +21,34 @@ typedef struct {
     size_t pos;
 } Buffer;
 
-#define BUF_EOF(buf) ((buf)->pos >= (buf)->size)
+typedef enum {
+    TT_EOF,
+    TT_EOL,
+    TT_INVALID,
+    TT_WORD,
+    TT_STRLIT,
+    TT_EQ,
+    TT_OB,
+    TT_CB,
+    TT_OCB,
+    TT_CCB,
+    TT_COUNT,
+} TokenType;
 
-Func str_to_func(char *str);
+typedef struct {
+    TokenType type;
+    char *value;
+} Token;
+
+char* printable_value(const Token *t);
 void readfile(FILE *f, Buffer *buf);
 char buf_peek(const Buffer *buf);
 char buf_getc(FILE *f, Buffer *buf);
 char buf_nextc(FILE *f, Buffer *buf);
 bool skipws(FILE *f, Buffer *buf);
-void try_read_char(FILE *f, Buffer *buf, char c);;
 bool readword(FILE *f, Buffer *buf, char word[WORD_MAX_SZ]);
-bool readstrlit(FILE *f, Buffer *buf, char strlit[STR_MAX_SZ]);
+char* readstrlit(FILE *f, Buffer *buf);
+Token lex_next(FILE *f, Buffer *buf);
+void lex_expect(FILE *f, Buffer *buf, TokenType t);
 
 #endif

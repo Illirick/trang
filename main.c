@@ -98,7 +98,7 @@ size_t save_audio(char *filepath) {
         exit(1);
     }
 
-    if (items != sf_write_float(file, buf, items)) {
+    if ((int) items != sf_write_float(file, buf, items)) {
         fprintf(stderr, "Error while writing to the file %s: %s\n", filepath, sf_strerror(file));
         exit(1);
     }
@@ -108,137 +108,157 @@ size_t save_audio(char *filepath) {
     return items;
 }
 
-void parse_load_args(FILE *f, Buffer *buf) {
-    try_read_char(f, buf, '(');
-    char strlit[STR_MAX_SZ] = {0};
-    if (readstrlit(f, buf, strlit)) {
-        fprintf(stderr, "Error: unexpected end of file while parsing function arguments\n");
+Sample* str_to_sample(char *str) {
+    for (size_t i = 0; i < sample_count; ++i) {
+        if (!strcmp(samples[i].name, str)) {
+            return &samples[i];
+        }
+    }
+    return NULL;
+}
+
+void load_sample(char *path, char *name) {
+    SF_INFO sfinfo;
+    sfinfo.format = 0;
+    SNDFILE *file = sf_open(path, SFM_READ, &sfinfo);
+    if (file == NULL) {
+        fprintf(stderr, "Error while opening the file %s: %s\n", path, sf_strerror(file));
         exit(1);
     }
-    try_read_char(f, buf, ')');
+    size_t items = sfinfo.frames * sfinfo.channels;
+    Frame *frame_buf = (Frame*) calloc(items, sizeof(Frame));
+    if ((int)items != sf_read_float(file, frame_buf, items)) {
+        fprintf(stderr, "Error while reading from the file %s: %s\n", path, sf_strerror(file));
+        exit(1);
+    }
+    sf_close(file);
+
+
+    Sample *s = str_to_sample(name);
+    if (s) {
+        s->frames = frame_buf;
+    } else {
+        //printf("Adding sample %s\n", name);
+        Sample sample = {.frames = frame_buf, .count = items};
+        strcpy(sample.name, name);
+        addsample(sample);
+    }
+}
+
+typedef enum {
+    UnknownFunction,
+    Load,
+    Play,
+    FUNC_COUNT,
+} Func;
+
+Func str_to_func(char *str) {
+    if (!strcmp(str, "load")) return Load;
+    else if (!strcmp(str, "play")) return Play;
+    return UnknownFunction;
+}
+
+char* parse_load_args(FILE *f, Buffer *buf) {
+    lex_expect(f, buf, TT_OB);
+    Token t = lex_next(f, buf);
+    if (t.type != TT_STRLIT) {
+        fprintf(stderr, "Error: expected a string but found %s\n", printable_value(&t));
+        exit(1);
+    }
+    lex_expect(f, buf, TT_CB);
+    return t.value;
 }
 void parse_play_args(FILE *f, Buffer *buf, size_t row) {
-    try_read_char(f, buf, '(');
-    char word[WORD_MAX_SZ] = {0};
-    skipws(f, buf);
-    if (readword(f, buf, word)) {
-        fprintf(stderr, "Error: unexpected end of file while parsing function arguments\n");
-        exit(1);
-    }
-
+    lex_expect(f, buf, TT_OB);
+    Token t = lex_next(f, buf);
     Sample *s = NULL;
     for (size_t i = 0; i < sample_count; ++i) {
-        if (!strcmp(samples[i].name, word)) {
+        if (!strcmp(samples[i].name, t.value)) {
             s = &samples[i];
             break;
         }
     }
     if (s == NULL) {
-        fprintf(stderr, "Error: no sample named %s\n", word);
+        fprintf(stderr, "Error: no sample named %s\n", t.value);
         exit(1);
     }
 
-    //      row                    BPM
-    // --------------- * --------------------- * samples per second * 2 channels per sample
-    // 4 rows per beat   60 seconds per minute
+    //      row          60 seconds per minute
+    // --------------- * --------------------- * samples per second * 2 samples per channel
+    // 4 rows per beat     beats per minute
     SampleInstance si = {s, ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2 };
     addsampleinstance(&si);
-    try_read_char(f, buf, ')');
+    lex_expect(f, buf, TT_CB);
 }
 
 void parse_block(FILE *f, Buffer *buf) {
-    assert(buf_getc(f, buf) == '{');
-    if (BUF_EOF(buf)) {
-        fprintf(stderr, "Error: unexpected end of file while parsing music block\n");
-        exit(1);
-    }
-    char word[WORD_MAX_SZ] = {0};
-    char c = buf_peek(buf);
-    while (c != '\n') {
-        if (BUF_EOF(buf)) {
+    Token t = lex_next(f, buf);
+    size_t row = 0;
+
+    while (t.type != TT_CCB) {
+        if (t.type == TT_EOF) {
             fprintf(stderr, "Error: unexpected end of file while parsing music block\n");
             exit(1);
+        } else if (t.type == TT_EOL) {
+            row ++;
+            t = lex_next(f, buf);
+            continue;
         }
-        c = buf_nextc(f, buf);
-    }
-    size_t row = 0;
-    while (c != '}') {
-        while (c != '\n') {
-            while (c == '\t' || c == ' ') { c = buf_nextc(f, buf); }
-            memset(word, 0, WORD_MAX_SZ);
-            if (readword(f, buf, word)) {
-                fprintf(stderr, "Error: unexpected end of file while parsing music block\n");
+        Func func = str_to_func(t.value);
+        switch (func) {
+            case Play:
+                parse_play_args(f, buf, row - 1);
+                break;
+            default:
+                fprintf(stderr, "Error: the only function allowed in music block is play function. But got: %s\n", printable_value(&t));
                 exit(1);
-            }
-            Func func = str_to_func(word);
-            switch (func) {
-                case Play:
-                    parse_play_args(f, buf, row - 1);
-                    c = buf_peek(buf);
-                    break;
-                default:
-                    fprintf(stderr, "Error: the only function allowed in music block is play function\n");
-                    exit(1);
-                    break;
-            }
+                break;
         }
-        row++;
-        c = buf_nextc(f, buf);
+        t = lex_next(f, buf);
     }
-    buf->pos++;
 }
 
 void parse(FILE *f) {
-    Buffer buf;
     char data[BUF_SZ + 1] = {0};
+
+    Buffer buf;
     buf.data = data;
     buf.size = BUF_SZ;
     buf.pos  = 0;
-    char word[WORD_MAX_SZ] = {0};
-    char strlit[STR_MAX_SZ] = {0};
+
     readfile(f, &buf);
-    while(buf.pos < buf.size) {
-        if (skipws(f, &buf)) break;
-        char c = buf_peek(&buf);
-        if (c == '{') {
-            parse_block(f, &buf);
-            if (skipws(f, &buf)) break;
-        }
-        memset(word, 0, WORD_MAX_SZ);
-        if (readword(f, &buf, word)) break;
-        Func func = str_to_func(word);
-        switch (func) {
-            case Load:
-                parse_load_args(f, &buf);
+
+    Token t = lex_next(f, &buf);
+    Func func;
+    while (t.type != TT_EOF) {
+        switch (t.type) {
+            case TT_OCB:
+                parse_block(f, &buf);
                 break;
-            case Play:
-                fprintf(stderr, "Error: play function should only be in music blocks\n");
-                exit(1);
+            case TT_WORD:
+                func = str_to_func(t.value);
+                if (func != UnknownFunction) {
+                    fprintf(stderr, "Error: unexpected function\n");
+                    exit(1);
+                }
+                lex_expect(f, &buf, TT_EQ);
+                Token value = lex_next(f, &buf);
+                func = str_to_func(value.value);
+                if (func == Load) {
+                    char* path = parse_load_args(f, &buf);
+                    load_sample(path, t.value);
+                } else if (func == UnknownFunction) {
+                } else {
+                    fprintf(stderr, "Error: unexpected token %s\n", printable_value(&t));
+                    exit(1);
+                }
+            case TT_EOL:
                 break;
             default:
-                try_read_char(f, &buf, '=');
-                memset(strlit, 0, STR_MAX_SZ);
-                readstrlit(f, &buf, strlit);
-                SF_INFO sfinfo;
-                sfinfo.format = 0;
-                SNDFILE *file = sf_open(strlit, SFM_READ, &sfinfo);
-                if (file == NULL) {
-                    fprintf(stderr, "Error while opening the file %s: %s\n", strlit, sf_strerror(file));
-                    exit(1);
-                }
-                size_t items = sfinfo.frames * sfinfo.channels;
-                Frame *frame_buf = (Frame*) calloc(items, sizeof(Frame));
-                if (items != sf_read_float(file, frame_buf, items)) {
-                    fprintf(stderr, "Error while reading from the file %s: %s\n", strlit, sf_strerror(file));
-                    exit(1);
-                }
-                sf_close(file);
-                size_t sample_name_len = strlen(word);
-                Sample s = {"", frame_buf, items};
-                strcpy(s.name, word);
-                addsample(s);
-                break;
+                fprintf(stderr, "Error: unexpected token %s\n", printable_value(&t));
+                exit(1);
         }
+        t = lex_next(f, &buf);
     }
 }
 
@@ -257,16 +277,3 @@ int main(int argc, char *argv[]) {
     save_audio("out.wav");
     return 0;
 }
-
-// void printbuf(const Buffer *buf) {
-//     for (size_t i = 0; i < buf->size; ++i) {
-//         if (i == buf->pos) {
-//             printf("\033[4m");
-//         }
-//         printf("%c", buf->data[i]);
-//         if (i == buf->pos) {
-//             printf("\033[0m");
-//         }
-//     }
-//     printf("\n");
-// }
