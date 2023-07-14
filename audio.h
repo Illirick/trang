@@ -30,12 +30,12 @@ typedef struct {
 } SampleInstance;
 
 void addsample(Sample sample);
-void addsampleinstance(char *sample_name, size_t row);
+void addsampleinstance(const char *sample_name, size_t row);
 // float sin_sound(float i, float freq, float volume, float samplerate); not needed yet
 // float raise_pitch(float base, float semitones);
 float add_sounds(float s1, float s2);
-size_t save_audio(char *filepath);
-Sample* str_to_sample(char *str);
-void load_sample(char *path, char *name);
+size_t save_audio(const char *filepath);
+Sample* str_to_sample(const char *str);
+void load_sample(const char *path, const char *name);
 
 #endif

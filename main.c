@@ -3,8 +3,6 @@
 #include <math.h>
 #include <assert.h>
 
-#include "lexer.h"
-#include "audio.h"
 #include "parser.h"
 
 int main(int argc, char *argv[]) {

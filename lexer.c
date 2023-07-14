@@ -176,7 +176,7 @@ Token lex_next(FILE *f, Buffer *buf) {
             t.value = strdup(word);
             break;
     }
-    printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+    //printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
     return t;
 }
 

@@ -1,6 +1,6 @@
 #include "parser.h"
 
-Func str_to_func(char *str) {
+Func str_to_func(const char *str) {
     if (!strcmp(str, "load")) return Load;
     else if (!strcmp(str, "play")) return Play;
     return UnknownFunction;
@@ -80,10 +80,11 @@ void parse_block(FILE *f, Buffer *buf) {
 void parse(FILE *f) {
     char data[BUF_SZ + 1] = {0};
 
-    Buffer buf;
-    buf.data = data;
-    buf.size = BUF_SZ;
-    buf.pos  = 0;
+    Buffer buf = {
+        .data = data,
+        .size = BUF_SZ,
+        .pos  = 0,
+    };
 
     readfile(f, &buf);
 

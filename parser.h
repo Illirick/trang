@@ -42,7 +42,7 @@ typedef enum {
     FUNC_COUNT,
 } Func;
 
-Func str_to_func(char *str);
+Func str_to_func(const char *str);
 Args parse_args(FILE *f, Buffer *buf);
 void parse_block(FILE *f, Buffer *buf);
 void parse(FILE *f);

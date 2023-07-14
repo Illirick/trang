@@ -15,7 +15,7 @@ void addsample(Sample sample) {
     sample_count++;
 }
 
-void addsampleinstance(char *sample_name, size_t row) {
+void addsampleinstance(const char *sample_name, size_t row) {
     if (sample_instance_count >= SAMPLE_INSTANCE_CAP) {
         fprintf(stderr, "Error: 2 many samples\n");
         exit(1);
@@ -53,7 +53,7 @@ float add_sounds(float s1, float s2) {
     return ((double)s1 - (0xFFFF / 2 - 1) + (double)s2 - (0xFFFF / 2 - 1)) / 2 + (0xFFFF / 2 - 1);
 }
 
-size_t save_audio(char *filepath) {
+size_t save_audio(const char *filepath) {
     if (sample_instance_count == 0) {
         return 0;
     }
@@ -100,7 +100,7 @@ size_t save_audio(char *filepath) {
     return items;
 }
 
-Sample* str_to_sample(char *str) {
+Sample* str_to_sample(const char *str) {
     for (size_t i = 0; i < sample_count; ++i) {
         if (!strcmp(samples[i].name, str)) {
             return &samples[i];
@@ -109,7 +109,7 @@ Sample* str_to_sample(char *str) {
     return NULL;
 }
 
-void load_sample(char *path, char *name) {
+void load_sample(const char *path, const char *name) {
     SF_INFO sfinfo;
     sfinfo.format = 0;
     SNDFILE *file = sf_open(path, SFM_READ, &sfinfo);
