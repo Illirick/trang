@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "lexer.h"
+//#include "parser.h"
 
 #include <sndfile.h>
 
@@ -41,14 +42,32 @@ void addsample(Sample sample) {
     sample_count++;
 }
 
-void addsampleinstance(SampleInstance *si) {
+void addsampleinstance(char *sample_name, size_t row) {
     if (sample_instance_count >= SAMPLE_INSTANCES_CAP) {
         fprintf(stderr, "Error: 2 many samples\n");
         exit(1);
     }
-    sample_instances[sample_instance_count] = *si;
+    Sample *s = NULL;
+
+    for (size_t i = 0; i < sample_count; ++i) {
+        if (!strcmp(samples[i].name, sample_name)) {
+            s = &samples[i];
+            break;
+        }
+    }
+    if (s == NULL) {
+        fprintf(stderr, "Error: no sample named %s\n", sample_name);
+        exit(1);
+    }
+
+    //      row          60 seconds per minute
+    // --------------- * --------------------- * samples per second * 2 samples per channel
+    // 4 rows per beat     beats per minute
+    SampleInstance si = {s, ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2 };
+    sample_instances[sample_instance_count] = si;
     sample_instance_count++;
 }
+
 float sin_sound(float i, float freq, float volume, float samplerate) {
     return sinf(i * M_PI * 2 * freq / samplerate) * volume * (0xFFFF / 2 - 1);
 }
@@ -158,37 +177,61 @@ Func str_to_func(char *str) {
     return UnknownFunction;
 }
 
-char* parse_load_args(FILE *f, Buffer *buf) {
-    lex_expect(f, buf, TT_OB);
-    Token t = lex_next(f, buf);
-    if (t.type != TT_STRLIT) {
-        fprintf(stderr, "Error: expected a string but found %s\n", printable_value(&t));
-        exit(1);
-    }
-    lex_expect(f, buf, TT_CB);
-    return t.value;
-}
-void parse_play_args(FILE *f, Buffer *buf, size_t row) {
-    lex_expect(f, buf, TT_OB);
-    Token t = lex_next(f, buf);
-    Sample *s = NULL;
-    for (size_t i = 0; i < sample_count; ++i) {
-        if (!strcmp(samples[i].name, t.value)) {
-            s = &samples[i];
-            break;
-        }
-    }
-    if (s == NULL) {
-        fprintf(stderr, "Error: no sample named %s\n", t.value);
-        exit(1);
-    }
+#define DA_INIT_CAP 128
 
-    //      row          60 seconds per minute
-    // --------------- * --------------------- * samples per second * 2 samples per channel
-    // 4 rows per beat     beats per minute
-    SampleInstance si = {s, ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2 };
-    addsampleinstance(&si);
-    lex_expect(f, buf, TT_CB);
+#define DA_APPEND(da, item) do {\
+    if ((da).count >= (da).capacity) {\
+        if ((da).capacity == 0) {\
+            (da).capacity = DA_INIT_CAP;\
+            (da).items = malloc(DA_INIT_CAP);\
+        } else {\
+            (da).capacity *= 2;\
+            (da).items = realloc((da).items, (da).capacity * sizeof(*(da).items));\
+        }\
+        assert((da).items != NULL);\
+    }\
+    (da).items[(da).count++] = item;\
+} while (0)
+
+typedef struct {
+    Token *items;
+    size_t count;
+    size_t capacity;
+} Tokens;
+
+typedef struct {
+    Tokens *items;
+    size_t count;
+    size_t capacity;
+} Args;
+
+Args parse_args(FILE *f, Buffer *buf) {
+    lex_expect(f, buf, TT_OB);
+
+    Args args = {0};
+    Tokens tokens = {0};
+
+    Token t;
+    do {
+        t = lex_next(f, buf);
+        switch(t.type) {
+            case TT_INVALID:
+            case TT_EOF:
+                fprintf(stderr, "Error: unexpected token %s", printable_value(&t));
+                exit(1);
+            case TT_COMMA:
+                DA_APPEND(args, tokens);
+                tokens.count = 0;
+                tokens.capacity = 0;
+                break;
+            case TT_CB:
+                DA_APPEND(args, tokens);
+                break;
+            default:
+                DA_APPEND(tokens, t);
+        }
+    } while (t.type != TT_CB);
+    return args;
 }
 
 void parse_block(FILE *f, Buffer *buf) {
@@ -207,7 +250,30 @@ void parse_block(FILE *f, Buffer *buf) {
         Func func = str_to_func(t.value);
         switch (func) {
             case Play:
-                parse_play_args(f, buf, row - 1);
+                Args args = parse_args(f, buf);
+                if (args.count < 0) {
+                    fprintf(stderr, "Error: too few arguments\n");
+                    exit(1);
+                }
+                if (args.count > 1) {
+                    fprintf(stderr, "Error: too many arguments\n");
+                    exit(1);
+                }
+                Tokens argstoks = args.items[0];
+                if (argstoks.count < 0) {
+                    fprintf(stderr, "Error: too few argument expected\n");
+                    exit(1);
+                }
+                if (argstoks.count > 1) {
+                    fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[1]));
+                    exit(1);
+                }
+                Token argt = argstoks.items[0];
+                if (argt.type != TT_WORD) {
+                    fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[0]));
+                    exit(1);
+                }
+                addsampleinstance(argt.value, row - 1);
                 break;
             default:
                 fprintf(stderr, "Error: the only function allowed in music block is play function. But got: %s\n", printable_value(&t));
@@ -245,8 +311,30 @@ void parse(FILE *f) {
                 Token value = lex_next(f, &buf);
                 func = str_to_func(value.value);
                 if (func == Load) {
-                    char* path = parse_load_args(f, &buf);
-                    load_sample(path, t.value);
+                    Args args = parse_args(f, &buf);
+                    if (args.count < 0) {
+                        fprintf(stderr, "Error: too few arguments\n");
+                        exit(1);
+                    }
+                    if (args.count > 1) {
+                        fprintf(stderr, "Error: too many arguments\n");
+                        exit(1);
+                    }
+                    Tokens argstoks = args.items[0];
+                    if (argstoks.count < 0) {
+                        fprintf(stderr, "Error: too few argument expected\n");
+                        exit(1);
+                    }
+                    if (argstoks.count > 1) {
+                        fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[1]));
+                        exit(1);
+                    }
+                    Token argt = argstoks.items[0];
+                    if (argt.type != TT_STRLIT) {
+                        fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[0]));
+                        exit(1);
+                    }
+                    load_sample(argt.value, t.value);
                 } else if (func == UnknownFunction) {
                 } else {
                     fprintf(stderr, "Error: unexpected token %s\n", printable_value(&t));
@@ -261,6 +349,7 @@ void parse(FILE *f) {
         t = lex_next(f, &buf);
     }
 }
+
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {

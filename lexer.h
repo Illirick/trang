@@ -32,6 +32,7 @@ typedef enum {
     TT_CB,
     TT_OCB,
     TT_CCB,
+    TT_COMMA,
     TT_COUNT,
 } TokenType;
 

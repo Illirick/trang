@@ -11,6 +11,7 @@ static char *token_type_names[TT_COUNT] = {
     [TT_CB] = "closing bracket",
     [TT_OCB] = "opening curly bracket",
     [TT_CCB] = "closing curly bracket",
+    [TT_COMMA] = "comma",
 };
 
 
@@ -149,6 +150,11 @@ Token lex_next(FILE *f, Buffer *buf) {
             t.value = "}";
             buf_getc(f, buf);
             break;
+        case ',':
+            t.type = TT_COMMA;
+            t.value = ",";
+            buf_getc(f, buf);
+            break;
         case '"':
             buf_getc(f, buf);
             char *strlit = readstrlit(f, buf);
@@ -170,7 +176,7 @@ Token lex_next(FILE *f, Buffer *buf) {
             t.value = strdup(word);
             break;
     }
-    // printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+    printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
     return t;
 }
 
