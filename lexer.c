@@ -72,8 +72,6 @@ bool readword(FILE *f, Buffer *buf, char word[WORD_MAX_SZ]) {
             fprintf(stderr, "Error: word is too big for a keyword\n");
             exit(1);
         }
-        // shouldn't happen
-        // if (BUF_EOF(buf)) return false;
         c = buf_nextc(f, buf);
     }
     if (j == 0) {
@@ -82,37 +80,19 @@ bool readword(FILE *f, Buffer *buf, char word[WORD_MAX_SZ]) {
     }
     return true;
 }
-char* readstrlit(FILE *f, Buffer *buf) {
-    char *strlit = (char*)malloc(0);
-    size_t start = buf->pos, size = 0, len;
-    while (1) {
-        for (size_t i = buf->pos; i < BUF_SZ; ++i) {
-            if (BUF_EOF(buf)) {
-                return NULL;
-            }
-            switch (buf_getc(f, buf)) {
-                case '"':
-                    len = i - start;
-                    size += len;
-                    strlit = reallocarray(strlit, size + 1, sizeof(char));
-                    memcpy(strlit, buf->data + start, len);
-                    strlit[size] = '\0';
-                    return strlit;
-                case '\n':
-                    //Allowed for now
-                case '\\':
-                    // Unimplemented
-                default:
-            }
+bool readstrlit(FILE *f, Buffer *buf, char str[STR_MAX_SZ]) {
+    size_t j = 0;
+    char c = buf_getc(f, buf);
+    while(c != '"') {
+        str[j++] = c;
+        if (j >= STR_MAX_SZ) {
+            fprintf(stderr, "Error: word is too big for a keyword\n");
+            exit(1);
         }
-        len = BUF_SZ - start;
-        size += len;
-        strlit = reallocarray(strlit, size, sizeof(char));
-        memcpy(strlit, buf->data + start, len);
-        start = 0;
+        if (BUF_EOF(buf)) return false;
+        c = buf_getc(f, buf);
     }
-    // Unreachable but yea
-    return NULL;
+    return true;
 }
 
 Token lex_next(FILE *f, Buffer *buf) {
@@ -157,8 +137,8 @@ Token lex_next(FILE *f, Buffer *buf) {
             break;
         case '"':
             buf_getc(f, buf);
-            char *strlit = readstrlit(f, buf);
-            if (strlit) {
+            char strlit[STR_MAX_SZ] = {0};
+            if (readstrlit(f, buf, strlit)) {
                 t.type = TT_STRLIT;
             } else {
                 t.type = TT_INVALID;
@@ -176,7 +156,7 @@ Token lex_next(FILE *f, Buffer *buf) {
             t.value = strdup(word);
             break;
     }
-    //printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+    // printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
     return t;
 }
 

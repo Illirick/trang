@@ -48,7 +48,7 @@ char buf_getc(FILE *f, Buffer *buf);
 char buf_nextc(FILE *f, Buffer *buf);
 bool skipws(FILE *f, Buffer *buf);
 bool readword(FILE *f, Buffer *buf, char word[WORD_MAX_SZ]);
-char* readstrlit(FILE *f, Buffer *buf);
+bool readstrlit(FILE *f, Buffer *buf, char str[STR_MAX_SZ]);
 Token lex_next(FILE *f, Buffer *buf);
 void lex_expect(FILE *f, Buffer *buf, TokenType t);
 
