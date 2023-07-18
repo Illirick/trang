@@ -67,16 +67,15 @@ size_t save_audio(const char *filepath) {
         exit(1);
     }
 
-    SampleInstance *latest_sample = &sample_instances[0];
-    for (size_t i = 1; i < sample_instance_count; ++i) {
-        SampleInstance *si = &sample_instances[i];
-        if (si->pos > latest_sample->pos) {
-            latest_sample = si;
+    size_t total_frames = 0, frames;
+    for (size_t i = 0; i < sample_instance_count; ++i) {
+        frames = sample_instances[i].pos + sample_instances[i].sample->count;
+        if (frames > total_frames) {
+            total_frames = frames;
         }
     }
-    size_t items = latest_sample->pos + latest_sample->sample->count;
-    if (items % 2 != 0) items ++;
-    Frame *buf = (Frame*)malloc(sizeof(Frame) * items);
+    if (total_frames % 2 != 0) total_frames ++;
+    Frame *buf = (Frame*)calloc(total_frames, sizeof(Frame));
 
     for (size_t i = 0; i < sample_instance_count; ++i) {
         SampleInstance *si = &sample_instances[i];
@@ -90,14 +89,14 @@ size_t save_audio(const char *filepath) {
         exit(1);
     }
 
-    if ((int) items != sf_write_float(file, buf, items)) {
+    if ((int) total_frames != sf_write_float(file, buf, total_frames)) {
         fprintf(stderr, "Error while writing to the file %s: %s\n", filepath, sf_strerror(file));
         exit(1);
     }
 
     sf_close(file);
 
-    return items;
+    return total_frames;
 }
 
 Sample* str_to_sample(const char *str) {
