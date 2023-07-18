@@ -1,30 +1,14 @@
 #include "audio.h"
 
-Sample samples[SAMPLE_CAP];
-SampleInstance sample_instances[SAMPLE_INSTANCE_CAP];
-
-size_t sample_count = 0;
-size_t sample_instance_count = 0;
-
-void addsample(Sample sample) {
-    if (sample_count >= SAMPLE_CAP) {
-        fprintf(stderr, "Error: 2 many samples\n");
-        exit(1);
-    }
-    samples[sample_count] = sample;
-    sample_count++;
-}
+Samples samples;
+Pattern main_pattern;
 
 void addsampleinstance(const char *sample_name, size_t row) {
-    if (sample_instance_count >= SAMPLE_INSTANCE_CAP) {
-        fprintf(stderr, "Error: 2 many samples\n");
-        exit(1);
-    }
     Sample *s = NULL;
 
-    for (size_t i = 0; i < sample_count; ++i) {
-        if (!strcmp(samples[i].name, sample_name)) {
-            s = &samples[i];
+    for (size_t i = 0; i < samples.count; ++i) {
+        if (!strcmp(samples.items[i].name, sample_name)) {
+            s = &samples.items[i];
             break;
         }
     }
@@ -37,8 +21,7 @@ void addsampleinstance(const char *sample_name, size_t row) {
     // --------------- * --------------------- * samples per second * 2 samples per channel
     // 4 rows per beat     beats per minute
     SampleInstance si = {s, ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2 };
-    sample_instances[sample_instance_count] = si;
-    sample_instance_count++;
+    DA_APPEND(main_pattern, si);
 }
 
 float sin_sound(float i, float freq, float volume, float samplerate) {
@@ -54,7 +37,7 @@ float add_sounds(float s1, float s2) {
 }
 
 size_t save_audio(const char *filepath) {
-    if (sample_instance_count == 0) {
+    if (main_pattern.count == 0) {
         return 0;
     }
     SF_INFO sfinfo;
@@ -68,8 +51,8 @@ size_t save_audio(const char *filepath) {
     }
 
     size_t total_frames = 0, frames;
-    for (size_t i = 0; i < sample_instance_count; ++i) {
-        frames = sample_instances[i].pos + sample_instances[i].sample->count;
+    for (size_t i = 0; i < main_pattern.count; ++i) {
+        frames = main_pattern.items[i].pos + main_pattern.items[i].sample->count;
         if (frames > total_frames) {
             total_frames = frames;
         }
@@ -77,8 +60,8 @@ size_t save_audio(const char *filepath) {
     if (total_frames % 2 != 0) total_frames ++;
     Frame *buf = (Frame*)calloc(total_frames, sizeof(Frame));
 
-    for (size_t i = 0; i < sample_instance_count; ++i) {
-        SampleInstance *si = &sample_instances[i];
+    for (size_t i = 0; i < main_pattern.count; ++i) {
+        SampleInstance *si = &main_pattern.items[i];
         for (size_t i = 0; i < si->sample->count; ++i) {
             buf[si->pos + i] = add_sounds(buf[si->pos + i], si->sample->frames[i]);
         }
@@ -100,9 +83,9 @@ size_t save_audio(const char *filepath) {
 }
 
 Sample* str_to_sample(const char *str) {
-    for (size_t i = 0; i < sample_count; ++i) {
-        if (!strcmp(samples[i].name, str)) {
-            return &samples[i];
+    for (size_t i = 0; i < samples.count; ++i) {
+        if (!strcmp(samples.items[i].name, str)) {
+            return &samples.items[i];
         }
     }
     return NULL;
@@ -132,6 +115,6 @@ void load_sample(const char *path, const char *name) {
         //printf("Adding sample %s\n", name);
         Sample sample = {.frames = frame_buf, .count = items};
         strcpy(sample.name, name);
-        addsample(sample);
+        DA_APPEND(samples, sample);
     }
 }
