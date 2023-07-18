@@ -43,8 +43,8 @@ typedef enum {
 } Func;
 
 Func str_to_func(const char *str);
-Args parse_args(FILE *f, Buffer *buf);
-void parse_block(FILE *f, Buffer *buf);
-void parse(FILE *f);
+Args parse_args(Lexer *l);
+void parse_block(Lexer *l);
+void parse(const char *filepath);
 
 #endif

@@ -14,6 +14,17 @@ static char *token_type_names[TT_COUNT] = {
     [TT_COMMA] = "comma",
 };
 
+// Seems like it zero-initializes all the other elements since
+// it's a global variable and I hope this is not UB
+TokenType literaltokens[256] = {
+    ['\n'] = TT_EOL,
+    ['='] = TT_EQ,
+    ['('] = TT_OB,
+    [')'] = TT_CB,
+    ['{'] = TT_OCB,
+    ['}'] = TT_CCB,
+    [','] = TT_COMMA,
+};
 
 char* printable_value(const Token *t) {
     if (t->type == TT_EOF) {
@@ -24,55 +35,73 @@ char* printable_value(const Token *t) {
     return t->value;
 }
 
-void readfile(FILE *f, Buffer *buf) {
-    size_t bytes_read = fread(buf->data, 1, BUF_SZ, f);
-    buf->pos = 0;
-    buf->size = bytes_read;
-    if (bytes_read < BUF_SZ && !feof(f)) {
+Lexer lex_init(const char *filepath, Buffer *buf) {
+    Lexer l = { .buf = buf };
+
+    FILE *file = fopen(filepath, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error while opening the file %s: %s\n", filepath, strerror(errno));
+        exit(1);
+    }
+    l.file = file;
+
+    l.buf = buf;
+    lex_readfile(&l);
+
+    return l;
+}
+
+void lex_readfile(const Lexer *l) {
+    size_t bytes_read = fread(l->buf->data, 1, BUF_SZ, l->file);
+    l->buf->pos = 0;
+    l->buf->size = bytes_read;
+    if (bytes_read < BUF_SZ && !feof(l->file)) {
         fprintf(stderr, "Error while reading from the file: %s\n", strerror(errno));
         exit(1);
     }
 }
 
-char buf_peek(const Buffer *buf) {
-    return buf->data[buf->pos];
-}
-char buf_getc(FILE *f, Buffer *buf) {
-    char c = buf_peek(buf);
-    buf->pos++;
-    if (buf->pos >= BUF_SZ) {
-        readfile(f, buf);
-    }
-    return c;
-}
-char buf_nextc(FILE *f, Buffer *buf) {
-    buf->pos++;
-    if (buf->pos >= BUF_SZ) {
-        readfile(f, buf);
-    }
-    return buf_peek(buf);
+char lex_peek(const Lexer *l) {
+    return l->buf->data[l->buf->pos];
 }
 
-bool skipws(FILE *f, Buffer *buf) {
-    if (BUF_EOF(buf)) return true;
-    char c = buf_peek(buf);
+void lex_incbuf(const Lexer *l) {
+    l->buf->pos++;
+    if (l->buf->pos >= BUF_SZ) {
+        lex_readfile(l);
+    }
+}
+
+char lex_getc(const Lexer *l) {
+    char c = lex_peek(l);
+    lex_incbuf(l);
+    return c;
+}
+char lex_nextc(const Lexer *l) {
+    lex_incbuf(l);
+    return lex_peek(l);
+}
+
+bool lex_skipws(const Lexer *l) {
+    if (BUF_EOF(l->buf)) return true;
+    char c = lex_peek(l);
     while(isspace(c) && c != '\n') {
-        c = buf_nextc(f, buf);
-        if (BUF_EOF(buf)) return true;
+        c = lex_nextc(l);
+        if (BUF_EOF(l->buf)) return true;
     }
     return false;
 }
 
-bool readword(FILE *f, Buffer *buf, char word[WORD_MAX_SZ]) {
+bool lex_readword(const Lexer *l, char word[WORD_MAX_SZ]) {
     size_t j = 0;
-    char c = buf_peek(buf);
+    char c = lex_peek(l);
     while(isalnum(c)) {
         word[j++] = c;
         if (j >= WORD_MAX_SZ) {
             fprintf(stderr, "Error: word is too big for a keyword\n");
             exit(1);
         }
-        c = buf_nextc(f, buf);
+        c = lex_nextc(l);
     }
     if (j == 0) {
         word[0] = c;
@@ -80,65 +109,40 @@ bool readword(FILE *f, Buffer *buf, char word[WORD_MAX_SZ]) {
     }
     return true;
 }
-bool readstrlit(FILE *f, Buffer *buf, char str[STR_MAX_SZ]) {
+bool lex_readstrlit(const Lexer *l, char str[STR_MAX_SZ]) {
     size_t j = 0;
-    char c = buf_getc(f, buf);
+    char c = lex_getc(l);
     while(c != '"') {
         str[j++] = c;
         if (j >= STR_MAX_SZ) {
             fprintf(stderr, "Error: word is too big for a keyword\n");
             exit(1);
         }
-        if (BUF_EOF(buf)) return false;
-        c = buf_getc(f, buf);
+        if (BUF_EOF(l->buf)) return false;
+        c = lex_getc(l);
     }
     return true;
 }
 
-Token lex_next(FILE *f, Buffer *buf) {
+Token lex_next(const Lexer *l) {
     Token t = {0};
-    if (skipws(f, buf)) return t;
-    char c = buf_peek(buf);
+    if (lex_skipws(l)) return t;
+    char c = lex_peek(l);
+    TokenType lit_tt = literaltokens[(uint8_t) c];
+    if (lit_tt != 0) {
+        t.value = (char*)calloc(2, sizeof(char));
+        t.value[0] = c;
+        t.type = lit_tt;
+
+        lex_incbuf(l);
+        //printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+        return t;
+    }
     switch(c) {
-        case '\n':
-            t.type = TT_EOL;
-            t.value = "\n";
-            buf_getc(f, buf);
-            break;
-        case '=':
-            t.type = TT_EQ;
-            t.value = "=";
-            buf_getc(f, buf);
-            break;
-        case '(':
-            t.type = TT_OB;
-            t.value = "(";
-            buf_getc(f, buf);
-            break;
-        case ')':
-            t.type = TT_CB;
-            t.value = ")";
-            buf_getc(f, buf);
-            break;
-        case '{':
-            t.type = TT_OCB;
-            t.value = "{";
-            buf_getc(f, buf);
-            break;
-        case '}':
-            t.type = TT_CCB;
-            t.value = "}";
-            buf_getc(f, buf);
-            break;
-        case ',':
-            t.type = TT_COMMA;
-            t.value = ",";
-            buf_getc(f, buf);
-            break;
         case '"':
-            buf_getc(f, buf);
+            lex_getc(l);
             char strlit[STR_MAX_SZ] = {0};
-            if (readstrlit(f, buf, strlit)) {
+            if (lex_readstrlit(l, strlit)) {
                 t.type = TT_STRLIT;
             } else {
                 t.type = TT_INVALID;
@@ -147,21 +151,21 @@ Token lex_next(FILE *f, Buffer *buf) {
             break;
         default:
             char word[WORD_MAX_SZ] = {0};
-            if (readword(f, buf, word)) {
+            if (lex_readword(l, word)) {
                 t.type = TT_WORD;
             } else {
                 t.type = TT_INVALID;
-                buf_getc(f, buf);
+                lex_incbuf(l);
             }
             t.value = strdup(word);
             break;
     }
-    // printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+    //printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
     return t;
 }
 
-void lex_expect(FILE *f, Buffer *buf, TokenType t) {
-    Token got = lex_next(f, buf);
+void lex_expect(const Lexer *l, TokenType t) {
+    Token got = lex_next(l);
     if (got.type != t) {
         fprintf(stderr, "Error: expected %s but got %s\n", token_type_names[t], printable_value(&got));
         exit(1);

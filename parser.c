@@ -6,15 +6,15 @@ Func str_to_func(const char *str) {
     return UnknownFunction;
 }
 
-Args parse_args(FILE *f, Buffer *buf) {
-    lex_expect(f, buf, TT_OB);
+Args parse_args(Lexer *l) {
+    lex_expect(l, TT_OB);
 
     Args args = {0};
     Tokens tokens = {0};
 
     Token t;
     do {
-        t = lex_next(f, buf);
+        t = lex_next(l);
         switch(t.type) {
             case TT_INVALID:
             case TT_EOF:
@@ -35,8 +35,8 @@ Args parse_args(FILE *f, Buffer *buf) {
     return args;
 }
 
-void parse_block(FILE *f, Buffer *buf) {
-    Token t = lex_next(f, buf);
+void parse_block(Lexer *l) {
+    Token t = lex_next(l);
     size_t row = 0;
 
     while (t.type != TT_CCB) {
@@ -45,13 +45,13 @@ void parse_block(FILE *f, Buffer *buf) {
             exit(1);
         } else if (t.type == TT_EOL) {
             row ++;
-            t = lex_next(f, buf);
+            t = lex_next(l);
             continue;
         }
         Func func = str_to_func(t.value);
         switch (func) {
             case Play:
-                Args args = parse_args(f, buf);
+                Args args = parse_args(l);
                 if (args.count > 1) {
                     fprintf(stderr, "Error: too many arguments\n");
                     exit(1);
@@ -73,11 +73,11 @@ void parse_block(FILE *f, Buffer *buf) {
                 exit(1);
                 break;
         }
-        t = lex_next(f, buf);
+        t = lex_next(l);
     }
 }
 
-void parse(FILE *f) {
+void parse(const char *filepath) {
     char data[BUF_SZ + 1] = {0};
 
     Buffer buf = {
@@ -86,14 +86,14 @@ void parse(FILE *f) {
         .pos  = 0,
     };
 
-    readfile(f, &buf);
+    Lexer l = lex_init(filepath, &buf);
 
-    Token t = lex_next(f, &buf);
+    Token t = lex_next(&l);
     Func func;
     while (t.type != TT_EOF) {
         switch (t.type) {
             case TT_OCB:
-                parse_block(f, &buf);
+                parse_block(&l);
                 break;
             case TT_WORD:
                 func = str_to_func(t.value);
@@ -101,11 +101,11 @@ void parse(FILE *f) {
                     fprintf(stderr, "Error: unexpected function\n");
                     exit(1);
                 }
-                lex_expect(f, &buf, TT_EQ);
-                Token value = lex_next(f, &buf);
+                lex_expect(&l, TT_EQ);
+                Token value = lex_next(&l);
                 func = str_to_func(value.value);
                 if (func == Load) {
-                    Args args = parse_args(f, &buf);
+                    Args args = parse_args(&l);
                     if (args.count > 1) {
                         fprintf(stderr, "Error: too many arguments\n");
                         exit(1);
@@ -132,6 +132,6 @@ void parse(FILE *f) {
                 fprintf(stderr, "Error: unexpected token %s\n", printable_value(&t));
                 exit(1);
         }
-        t = lex_next(f, &buf);
+        t = lex_next(&l);
     }
 }

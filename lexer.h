@@ -7,19 +7,15 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdint.h>
 
 #define WORD_MAX_SZ 64
 #define STR_MAX_SZ 256
 
-#define BUF_SZ 1024
+#define BUF_SZ 1
 
 #define BUF_EOF(buf) ((buf)->pos >= (buf)->size)
-
-typedef struct {
-    char *data;
-    size_t size;
-    size_t pos;
-} Buffer;
+#define ARRLEN(arr) sizeof(arr)/sizeof(arr[0])
 
 typedef enum {
     TT_EOF,
@@ -41,15 +37,29 @@ typedef struct {
     char *value;
 } Token;
 
+typedef struct {
+    char *data;
+    size_t size;
+    size_t pos;
+} Buffer;
+
+typedef struct {
+    FILE *file;
+    Buffer *buf;
+} Lexer;
+
 char* printable_value(const Token *t);
-void readfile(FILE *f, Buffer *buf);
-char buf_peek(const Buffer *buf);
-char buf_getc(FILE *f, Buffer *buf);
-char buf_nextc(FILE *f, Buffer *buf);
-bool skipws(FILE *f, Buffer *buf);
-bool readword(FILE *f, Buffer *buf, char word[WORD_MAX_SZ]);
-bool readstrlit(FILE *f, Buffer *buf, char str[STR_MAX_SZ]);
-Token lex_next(FILE *f, Buffer *buf);
-void lex_expect(FILE *f, Buffer *buf, TokenType t);
+
+Lexer lex_init(const char *filepath, Buffer *buf);
+void lex_readfile(const Lexer *l);
+char lex_peek(const Lexer *l);
+void lex_incbuf(const Lexer *l);
+char lex_getc(const Lexer *l);
+char lex_nextc(const Lexer *l);
+bool lex_skipws(const Lexer *l);
+bool lex_readword(const Lexer *l, char word[WORD_MAX_SZ]);
+bool lex_readstrlit(const Lexer *l, char str[STR_MAX_SZ]);
+Token lex_next(const Lexer *l);
+void lex_expect(const Lexer *l, TokenType t);
 
 #endif
