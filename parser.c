@@ -21,15 +21,15 @@ Args parse_args(Lexer *l) {
                 fprintf(stderr, "Error: unexpected token %s", printable_value(&t));
                 exit(1);
             case TT_COMMA:
-                DA_APPEND(args, tokens);
+                DA_APPEND(&args, tokens);
                 tokens.count = 0;
                 tokens.capacity = 0;
                 break;
             case TT_CB:
-                DA_APPEND(args, tokens);
+                DA_APPEND(&args, tokens);
                 break;
             default:
-                DA_APPEND(tokens, t);
+                DA_APPEND(&tokens, t);
         }
     } while (t.type != TT_CB);
     return args;
@@ -38,7 +38,7 @@ Args parse_args(Lexer *l) {
 void parse_block(Lexer *l) {
     Token t = lex_next(l);
     size_t row = 0;
-
+    Pattern p = {0};
     while (t.type != TT_CCB) {
         if (t.type == TT_EOF) {
             fprintf(stderr, "Error: unexpected end of file while parsing music block\n");
@@ -66,7 +66,7 @@ void parse_block(Lexer *l) {
                     fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[0]));
                     exit(1);
                 }
-                addsampleinstance(argt.value, row - 1);
+                addsampleinstance(argt.value, &p, row - 1);
                 break;
             default:
                 fprintf(stderr, "Error: the only function allowed in music block is play function. But got: %s\n", printable_value(&t));
@@ -75,6 +75,8 @@ void parse_block(Lexer *l) {
         }
         t = lex_next(l);
     }
+    extern Patterns patterns;
+    DA_APPEND(&patterns, p);
 }
 
 void parse(const char *filepath) {

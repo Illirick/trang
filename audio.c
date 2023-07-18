@@ -1,7 +1,7 @@
 #include "audio.h"
 
-Samples samples;
-Pattern main_pattern;
+static Samples samples;
+Patterns patterns;
 
 size_t framecount(const Pattern *p) {
     size_t total_frames = 0, frames;
@@ -15,7 +15,7 @@ size_t framecount(const Pattern *p) {
     return total_frames;
 }
 
-void addsampleinstance(const char *sample_name, size_t row) {
+void addsampleinstance(const char *sample_name, Pattern *pat, size_t row) {
     Sample *s = NULL;
 
     for (size_t i = 0; i < samples.count; ++i) {
@@ -30,10 +30,10 @@ void addsampleinstance(const char *sample_name, size_t row) {
     }
 
     //      row          60 seconds per minute
-    // --------------- * --------------------- * samples per second * 2 samples per channel
+    // --------------- * --------------------- * samples per second (or sample rate) * 2 samples per channel
     // 4 rows per beat     beats per minute
-    SampleInstance si = {s, ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2 };
-    DA_APPEND(main_pattern, si);
+    SampleInstance si = { s, ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2 };
+    DA_APPEND(pat, si);
 }
 
 float sinsound(float i, float freq, float volume, float samplerate) {
@@ -49,7 +49,7 @@ float addsounds(float s1, float s2) {
 }
 
 size_t saveaudio(const char *filepath) {
-    if (main_pattern.count == 0) {
+    if (patterns.count == 0) {
         return 0;
     }
     SF_INFO sfinfo;
@@ -62,24 +62,34 @@ size_t saveaudio(const char *filepath) {
         exit(1);
     }
 
-    size_t total_frames = framecount(&main_pattern);
-    Frame *buf = (Frame*)calloc(total_frames, sizeof(Frame));
-
-    for (size_t i = 0; i < main_pattern.count; ++i) {
-        SampleInstance *si = &main_pattern.items[i];
-        for (size_t i = 0; i < si->sample->count; ++i) {
-            buf[si->pos + i] = addsounds(buf[si->pos + i], si->sample->frames[i]);
+    size_t total_frames;
+    for (size_t i = 0; i < patterns.count; ++i) {
+        Pattern *pat = &patterns.items[i];
+        total_frames = framecount(pat);
+        if (pat->count == 0) {
+            continue;
         }
-    }
+        Frame *buf = (Frame*)calloc(total_frames, sizeof(Frame));
 
-    if (buf == NULL) {
-        fprintf(stderr, "Error while allocation memory for the final audio: %s\n", strerror(errno));
-        exit(1);
-    }
+        if (buf == NULL) {
+            fprintf(stderr, "Error while allocation memory for the final audio: %s\n", strerror(errno));
+            sf_close(file);
+            exit(1);
+        }
 
-    if ((int) total_frames != sf_write_float(file, buf, total_frames)) {
-        fprintf(stderr, "Error while writing to the file %s: %s\n", filepath, sf_strerror(file));
-        exit(1);
+        for (size_t i = 0; i < pat->count; ++i) {
+            SampleInstance *si = &pat->items[i];
+            for (size_t i = 0; i < si->sample->count; ++i) {
+                buf[si->pos + i] = addsounds(buf[si->pos + i], si->sample->frames[i]);
+            }
+        }
+
+        if ((int) total_frames != sf_write_float(file, buf, total_frames)) {
+            fprintf(stderr, "Error while writing to the file %s: %s\n", filepath, sf_strerror(file));
+            sf_close(file);
+            exit(1);
+        }
+        free(buf);
     }
 
     sf_close(file);
@@ -120,6 +130,6 @@ void loadsample(const char *path, const char *name) {
         //printf("Adding sample %s\n", name);
         Sample sample = {.frames = frame_buf, .count = items};
         strcpy(sample.name, name);
-        DA_APPEND(samples, sample);
+        DA_APPEND(&samples, sample);
     }
 }
