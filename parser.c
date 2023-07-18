@@ -120,7 +120,7 @@ void parse(const char *filepath) {
                         fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[0]));
                         exit(1);
                     }
-                    load_sample(argt.value, t.value);
+                    loadsample(argt.value, t.value);
                 } else if (func == UnknownFunction) {
                 } else {
                     fprintf(stderr, "Error: unexpected token %s\n", printable_value(&t));

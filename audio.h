@@ -58,13 +58,15 @@ typedef struct {
     size_t capacity;
 } Pattern;
 
+size_t framecount(const Pattern *p);
+
 void addsample(Sample sample);
 void addsampleinstance(const char *sample_name, size_t row);
-// float sin_sound(float i, float freq, float volume, float samplerate); not needed yet
-// float raise_pitch(float base, float semitones);
-float add_sounds(float s1, float s2);
-size_t save_audio(const char *filepath);
-Sample* str_to_sample(const char *str);
-void load_sample(const char *path, const char *name);
+// float sinsound(float i, float freq, float volume, float samplerate); not needed yet
+// float raisepitch(float base, float semitones);
+// float addsounds(float s1, float s2);
+size_t saveaudio(const char *filepath);
+Sample* strtosample(const char *str);
+void loadsample(const char *path, const char *name);
 
 #endif

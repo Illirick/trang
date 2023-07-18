@@ -3,6 +3,18 @@
 Samples samples;
 Pattern main_pattern;
 
+size_t framecount(const Pattern *p) {
+    size_t total_frames = 0, frames;
+    for (size_t i = 0; i < p->count; ++i) {
+        frames = p->items[i].pos + p->items[i].sample->count;
+        if (frames > total_frames) {
+            total_frames = frames;
+        }
+    }
+    if (total_frames % 2 != 0) total_frames ++;
+    return total_frames;
+}
+
 void addsampleinstance(const char *sample_name, size_t row) {
     Sample *s = NULL;
 
@@ -24,19 +36,19 @@ void addsampleinstance(const char *sample_name, size_t row) {
     DA_APPEND(main_pattern, si);
 }
 
-float sin_sound(float i, float freq, float volume, float samplerate) {
+float sinsound(float i, float freq, float volume, float samplerate) {
     return sinf(i * M_PI * 2 * freq / samplerate) * volume * (0xFFFF / 2 - 1);
 }
 
-float raise_pitch(float base, float semitones) {
+float raisepitch(float base, float semitones) {
     return base * pow(2, 1/semitones);
 }
 
-float add_sounds(float s1, float s2) {
+float addsounds(float s1, float s2) {
     return ((double)s1 - (0xFFFF / 2 - 1) + (double)s2 - (0xFFFF / 2 - 1)) / 2 + (0xFFFF / 2 - 1);
 }
 
-size_t save_audio(const char *filepath) {
+size_t saveaudio(const char *filepath) {
     if (main_pattern.count == 0) {
         return 0;
     }
@@ -50,20 +62,13 @@ size_t save_audio(const char *filepath) {
         exit(1);
     }
 
-    size_t total_frames = 0, frames;
-    for (size_t i = 0; i < main_pattern.count; ++i) {
-        frames = main_pattern.items[i].pos + main_pattern.items[i].sample->count;
-        if (frames > total_frames) {
-            total_frames = frames;
-        }
-    }
-    if (total_frames % 2 != 0) total_frames ++;
+    size_t total_frames = framecount(&main_pattern);
     Frame *buf = (Frame*)calloc(total_frames, sizeof(Frame));
 
     for (size_t i = 0; i < main_pattern.count; ++i) {
         SampleInstance *si = &main_pattern.items[i];
         for (size_t i = 0; i < si->sample->count; ++i) {
-            buf[si->pos + i] = add_sounds(buf[si->pos + i], si->sample->frames[i]);
+            buf[si->pos + i] = addsounds(buf[si->pos + i], si->sample->frames[i]);
         }
     }
 
@@ -82,7 +87,7 @@ size_t save_audio(const char *filepath) {
     return total_frames;
 }
 
-Sample* str_to_sample(const char *str) {
+Sample* strtosample(const char *str) {
     for (size_t i = 0; i < samples.count; ++i) {
         if (!strcmp(samples.items[i].name, str)) {
             return &samples.items[i];
@@ -91,7 +96,7 @@ Sample* str_to_sample(const char *str) {
     return NULL;
 }
 
-void load_sample(const char *path, const char *name) {
+void loadsample(const char *path, const char *name) {
     SF_INFO sfinfo;
     sfinfo.format = 0;
     SNDFILE *file = sf_open(path, SFM_READ, &sfinfo);
@@ -108,7 +113,7 @@ void load_sample(const char *path, const char *name) {
     sf_close(file);
 
 
-    Sample *s = str_to_sample(name);
+    Sample *s = strtosample(name);
     if (s) {
         s->frames = frame_buf;
     } else {

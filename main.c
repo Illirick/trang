@@ -12,6 +12,6 @@ int main(int argc, char *argv[]) {
     }
     char *filepath = argv[1];
     parse(filepath);
-    save_audio("out.wav");
+    saveaudio("out.wav");
     return 0;
 }
