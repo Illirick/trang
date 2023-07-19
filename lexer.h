@@ -48,7 +48,8 @@ typedef struct {
     Buffer *buf;
 } Lexer;
 
-char* printable_value(const Token *t);
+char* printablevalue(const Token *t);
+void tokenexception(const Token *t);
 
 Lexer lex_init(const char *filepath, Buffer *buf);
 void lex_readfile(const Lexer *l);

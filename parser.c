@@ -18,8 +18,8 @@ Args parse_args(Lexer *l) {
         switch(t.type) {
             case TT_INVALID:
             case TT_EOF:
-                fprintf(stderr, "Error: unexpected token %s", printable_value(&t));
-                exit(1);
+                tokenexception(&t);
+                break;
             case TT_COMMA:
                 DA_APPEND(&args, tokens);
                 tokens.count = 0;
@@ -58,18 +58,16 @@ void parse_block(Lexer *l) {
                 }
                 Tokens argstoks = args.items[0];
                 if (argstoks.count > 1) {
-                    fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[1]));
-                    exit(1);
+                    tokenexception(&argstoks.items[1]);
                 }
                 Token argt = argstoks.items[0];
                 if (argt.type != TT_WORD) {
-                    fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[0]));
-                    exit(1);
+                    tokenexception(&argstoks.items[0]);
                 }
                 addsampleinstance(argt.value, &p, row - 1);
                 break;
             default:
-                fprintf(stderr, "Error: the only function allowed in music block is play function. But got: %s\n", printable_value(&t));
+                fprintf(stderr, "Error: the only function allowed in music block is play function. But got: %s\n", printablevalue(&t));
                 exit(1);
                 break;
         }
@@ -115,25 +113,21 @@ void parse(const char *filepath) {
                     }
                     Tokens argstoks = args.items[0];
                     if (argstoks.count > 1) {
-                        fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[1]));
-                        exit(1);
+                        tokenexception(&argstoks.items[1]);
                     }
                     Token argt = argstoks.items[0];
                     if (argt.type != TT_STRLIT) {
-                        fprintf(stderr, "Error: unexpected token %s\n", printable_value(&argstoks.items[0]));
-                        exit(1);
+                        tokenexception(&argstoks.items[0]);
                     }
                     loadsample(argt.value, t.value);
                 } else if (func == UnknownFunction) {
                 } else {
-                    fprintf(stderr, "Error: unexpected token %s\n", printable_value(&t));
-                    exit(1);
+                    tokenexception(&t);
                 }
             case TT_EOL:
                 break;
             default:
-                fprintf(stderr, "Error: unexpected token %s\n", printable_value(&t));
-                exit(1);
+                tokenexception(&t);
         }
         t = lex_next(&l);
     }

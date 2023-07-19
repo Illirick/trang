@@ -26,13 +26,18 @@ TokenType literaltokens[256] = {
     [','] = TT_COMMA,
 };
 
-char* printable_value(const Token *t) {
+char* printablevalue(const Token *t) {
     if (t->type == TT_EOF) {
         return "<End of file>";
     } else if (t->type == TT_EOL) {
         return "<End of line>";
     }
     return t->value;
+}
+
+void tokenexception(const Token *t) {
+    fprintf(stderr, "Error: unexpected token %s\n", printablevalue(t));
+    exit(1);
 }
 
 Lexer lex_init(const char *filepath, Buffer *buf) {
@@ -167,7 +172,7 @@ Token lex_next(const Lexer *l) {
 void lex_expect(const Lexer *l, TokenType t) {
     Token got = lex_next(l);
     if (got.type != t) {
-        fprintf(stderr, "Error: expected %s but got %s\n", token_type_names[t], printable_value(&got));
+        fprintf(stderr, "Error: expected %s but got %s\n", token_type_names[t], printablevalue(&got));
         exit(1);
     }
 }
