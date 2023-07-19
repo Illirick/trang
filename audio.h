@@ -56,6 +56,7 @@ typedef struct {
     SampleInstance *items;
     size_t count;
     size_t capacity;
+    size_t rows;
 } Pattern;
 
 typedef struct {
@@ -65,6 +66,7 @@ typedef struct {
 } Patterns;
 
 size_t framecount(const Pattern *p);
+size_t rowtoframecount(size_t row);
 
 void addsample(Sample sample);
 void addsampleinstance(const char *sample_name, Pattern *pat, size_t row);

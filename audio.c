@@ -15,6 +15,13 @@ size_t framecount(const Pattern *p) {
     return total_frames;
 }
 
+size_t rowtoframecount(size_t row) {
+    //      row          60 seconds per minute
+    // --------------- * --------------------- * samples per second (or sample rate) * 2 samples per channel
+    // 4 rows per beat     beats per minute
+    return ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2;
+}
+
 void addsampleinstance(const char *sample_name, Pattern *pat, size_t row) {
     Sample *s = NULL;
 
@@ -29,10 +36,7 @@ void addsampleinstance(const char *sample_name, Pattern *pat, size_t row) {
         exit(1);
     }
 
-    //      row          60 seconds per minute
-    // --------------- * --------------------- * samples per second (or sample rate) * 2 samples per channel
-    // 4 rows per beat     beats per minute
-    SampleInstance si = { s, ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2 };
+    SampleInstance si = { s, rowtoframecount(row) };
     DA_APPEND(pat, si);
 }
 
@@ -62,14 +66,15 @@ size_t saveaudio(const char *filepath) {
         exit(1);
     }
 
-    size_t total_frames;
+    size_t total_frames = 0, offset = 0;
+    Frame *buf = NULL;
     for (size_t i = 0; i < patterns.count; ++i) {
         Pattern *pat = &patterns.items[i];
-        total_frames = framecount(pat);
+        total_frames += framecount(pat);
         if (pat->count == 0) {
             continue;
         }
-        Frame *buf = (Frame*)calloc(total_frames, sizeof(Frame));
+        buf = (Frame*)realloc(buf, total_frames * sizeof(Frame));
 
         if (buf == NULL) {
             fprintf(stderr, "Error while allocation memory for the final audio: %s\n", strerror(errno));
@@ -80,16 +85,16 @@ size_t saveaudio(const char *filepath) {
         for (size_t i = 0; i < pat->count; ++i) {
             SampleInstance *si = &pat->items[i];
             for (size_t i = 0; i < si->sample->count; ++i) {
-                buf[si->pos + i] = addsounds(buf[si->pos + i], si->sample->frames[i]);
+                size_t pos = si->pos + i + offset;
+                buf[pos] = addsounds(buf[pos], si->sample->frames[i]);
             }
         }
-
-        if ((int) total_frames != sf_write_float(file, buf, total_frames)) {
-            fprintf(stderr, "Error while writing to the file %s: %s\n", filepath, sf_strerror(file));
-            sf_close(file);
-            exit(1);
-        }
-        free(buf);
+        offset += rowtoframecount(pat->rows);
+    }
+    if ((int) total_frames != sf_write_float(file, buf, total_frames)) {
+        fprintf(stderr, "Error while writing to the file %s: %s\n", filepath, sf_strerror(file));
+        sf_close(file);
+        exit(1);
     }
 
     sf_close(file);

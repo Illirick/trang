@@ -75,6 +75,7 @@ void parse_block(Lexer *l) {
         }
         t = lex_next(l);
     }
+    p.rows = row - 1;
     extern Patterns patterns;
     DA_APPEND(&patterns, p);
 }

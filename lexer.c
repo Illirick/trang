@@ -135,7 +135,7 @@ Token lex_next(const Lexer *l) {
         t.type = lit_tt;
 
         lex_incbuf(l);
-        //printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+        // printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
         return t;
     }
     switch(c) {
@@ -160,7 +160,7 @@ Token lex_next(const Lexer *l) {
             t.value = strdup(word);
             break;
     }
-    //printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+    // printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
     return t;
 }
 
