@@ -1,8 +1,3 @@
-#include <stdint.h>
-#include <limits.h>
-#include <math.h>
-#include <assert.h>
-
 #include "parser.h"
 
 int main(int argc, char *argv[]) {

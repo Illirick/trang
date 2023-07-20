@@ -1,9 +1,6 @@
 #ifndef PARSR_H_
 #define PARSER_H_
 
-#include <ctype.h>
-#include <stdio.h>
-#include <assert.h>
 #include "lexer.h"
 #include "audio.h"
 
