@@ -1,9 +1,9 @@
 #include "parser.h"
 
-Func str_to_func(const char *str) {
-    if (!strcmp(str, "load")) return Load;
-    else if (!strcmp(str, "play")) return Play;
-    return UnknownFunction;
+Func strtofunc(const char *str) {
+    if (!strcmp(str, "load")) return FUNC_LOAD;
+    else if (!strcmp(str, "play")) return FUNC_PLAY;
+    return FUNC_UNKNOWN;
 }
 
 Args parse_args(Lexer *l) {
@@ -48,9 +48,9 @@ void parse_block(Lexer *l) {
             t = lex_next(l);
             continue;
         }
-        Func func = str_to_func(t.value);
+        Func func = strtofunc(t.value);
         switch (func) {
-            case Play:
+            case FUNC_PLAY:
                 Args args = parse_args(l);
                 if (args.count > 1) {
                     fprintf(stderr, "Error: too many arguments\n");
@@ -97,15 +97,15 @@ void parse(const char *filepath) {
                 parse_block(&l);
                 break;
             case TT_WORD:
-                func = str_to_func(t.value);
-                if (func != UnknownFunction) {
+                func = strtofunc(t.value);
+                if (func != FUNC_UNKNOWN) {
                     fprintf(stderr, "Error: unexpected function\n");
                     exit(1);
                 }
                 lex_expect(&l, TT_EQ);
                 Token value = lex_next(&l);
-                func = str_to_func(value.value);
-                if (func == Load) {
+                func = strtofunc(value.value);
+                if (func == FUNC_LOAD) {
                     Args args = parse_args(&l);
                     if (args.count > 1) {
                         fprintf(stderr, "Error: too many arguments\n");
@@ -120,7 +120,7 @@ void parse(const char *filepath) {
                         tokenexception(&argstoks.items[0]);
                     }
                     loadsample(argt.value, t.value);
-                } else if (func == UnknownFunction) {
+                } else if (func == FUNC_UNKNOWN) {
                 } else {
                     tokenexception(&t);
                 }

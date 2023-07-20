@@ -17,13 +17,13 @@ typedef struct {
 } Args;
 
 typedef enum {
-    UnknownFunction,
-    Load,
-    Play,
+    FUNC_UNKNOWN,
+    FUNC_LOAD,
+    FUNC_PLAY,
     FUNC_COUNT,
 } Func;
 
-Func str_to_func(const char *str);
+Func strtofunc(const char *str);
 Args parse_args(Lexer *l);
 void parse_block(Lexer *l);
 void parse(const char *filepath);
