@@ -102,15 +102,6 @@ size_t saveaudio(const char *filepath) {
     return total_frames;
 }
 
-Sample* strtosample(const char *str) {
-    for (size_t i = 0; i < samples.count; ++i) {
-        if (!strcmp(samples.items[i].name, str)) {
-            return &samples.items[i];
-        }
-    }
-    return NULL;
-}
-
 void loadsample(const char *path, const char *name) {
     SF_INFO sfinfo;
     sfinfo.format = 0;
@@ -127,8 +118,8 @@ void loadsample(const char *path, const char *name) {
     }
     sf_close(file);
 
-
-    Sample *s = strtosample(name);
+    Sample *s = NULL;
+    LINEAR_SEARCH(samples, name, s);
     if (s) {
         s->frames = frame_buf;
     } else {
@@ -136,5 +127,22 @@ void loadsample(const char *path, const char *name) {
         Sample sample = {.frames = frame_buf, .count = items};
         strcpy(sample.name, name);
         DA_APPEND(&samples, sample);
+    }
+}
+void addpattern(Pattern *pat, const char *name) {
+    if (name) {
+        memcpy(pat->name, name, WORD_MAX_SZ - 1);
+    } else {
+        int numstrlength = snprintf(NULL, 0, "%zu", patterns.count);
+        assert(numstrlength >= 0);
+        assert(numstrlength <= WORD_MAX_SZ);
+        sprintf(pat->name, "%zu", patterns.count);
+    }
+    Pattern *p = NULL;
+    LINEAR_SEARCH(patterns, pat->name, p);
+    if (p) {
+        p->items = pat->items;
+    } else {
+        DA_APPEND(&patterns, *pat);
     }
 }

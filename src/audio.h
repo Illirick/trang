@@ -35,6 +35,14 @@ typedef float Frame;
     (da)->items[(da)->count++] = item;\
 } while (0)
 
+#define LINEAR_SEARCH(arr, item_name, var) do {\
+    for (size_t iter = 0; iter < (arr).count; ++iter) {\
+        if (!strcmp((arr).items[iter].name, (item_name))) {\
+            (var) = &(arr).items[iter];\
+        }\
+    }\
+} while (0)
+
 typedef struct {
     char name[WORD_MAX_SZ];
     Frame *frames;
@@ -53,6 +61,8 @@ typedef struct {
 } Samples;
 
 typedef struct {
+    char name[WORD_MAX_SZ];
+
     SampleInstance *items;
     size_t count;
     size_t capacity;
@@ -68,13 +78,13 @@ typedef struct {
 size_t framecount(const Pattern *p);
 size_t rowtoframecount(size_t row);
 
-void addsample(Sample sample);
 void addsampleinstance(const char *sample_name, Pattern *pat, size_t row);
-// float sinsound(float i, float freq, float volume, float samplerate); not needed yet
+// Not needed yet
+// float sinsound(float i, float freq, float volume, float samplerate);
 // float raisepitch(float base, float semitones);
-// float addsounds(float s1, float s2);
+float addsounds(float s1, float s2);
 size_t saveaudio(const char *filepath);
-Sample* strtosample(const char *str);
 void loadsample(const char *path, const char *name);
+void addpattern(Pattern *p, const char *name);
 
 #endif

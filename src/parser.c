@@ -35,7 +35,7 @@ Args parse_args(Lexer *l) {
     return args;
 }
 
-void parse_block(Lexer *l) {
+void parse_block(Lexer *l, const char *name) {
     Token t = lex_next(l);
     size_t row = 0;
     Pattern p = {0};
@@ -74,8 +74,39 @@ void parse_block(Lexer *l) {
         t = lex_next(l);
     }
     p.rows = row - 1;
-    extern Patterns patterns;
-    DA_APPEND(&patterns, p);
+    addpattern(&p, name);
+}
+
+void parse_declaration(Lexer *l, Token t) {
+    Func func = strtofunc(t.value);
+    if (func != FUNC_UNKNOWN) {
+        fprintf(stderr, "Error: unexpected function\n");
+        exit(1);
+    }
+    lex_expect(l, TT_EQ);
+    Token value = lex_next(l);
+    func = strtofunc(value.value);
+    if (func == FUNC_LOAD) {
+        Args args = parse_args(l);
+        if (args.count > 1) {
+            fprintf(stderr, "Error: too many arguments\n");
+            exit(1);
+        }
+        Tokens argstoks = args.items[0];
+        if (argstoks.count > 1) {
+            tokenexception(&argstoks.items[1]);
+        }
+        Token argt = argstoks.items[0];
+        if (argt.type != TT_STRLIT) {
+            tokenexception(&argstoks.items[0]);
+        }
+        loadsample(argt.value, t.value);
+    } else if (func == FUNC_UNKNOWN) {
+        lex_expect(l, TT_OCB);
+        parse_block(l, t.value);
+    } else {
+        tokenexception(&t);
+    }
 }
 
 void parse(const char *filepath) {
@@ -90,40 +121,13 @@ void parse(const char *filepath) {
     Lexer l = lex_init(filepath, &buf);
 
     Token t = lex_next(&l);
-    Func func;
     while (t.type != TT_EOF) {
         switch (t.type) {
             case TT_OCB:
-                parse_block(&l);
+                parse_block(&l, NULL);
                 break;
             case TT_WORD:
-                func = strtofunc(t.value);
-                if (func != FUNC_UNKNOWN) {
-                    fprintf(stderr, "Error: unexpected function\n");
-                    exit(1);
-                }
-                lex_expect(&l, TT_EQ);
-                Token value = lex_next(&l);
-                func = strtofunc(value.value);
-                if (func == FUNC_LOAD) {
-                    Args args = parse_args(&l);
-                    if (args.count > 1) {
-                        fprintf(stderr, "Error: too many arguments\n");
-                        exit(1);
-                    }
-                    Tokens argstoks = args.items[0];
-                    if (argstoks.count > 1) {
-                        tokenexception(&argstoks.items[1]);
-                    }
-                    Token argt = argstoks.items[0];
-                    if (argt.type != TT_STRLIT) {
-                        tokenexception(&argstoks.items[0]);
-                    }
-                    loadsample(argt.value, t.value);
-                } else if (func == FUNC_UNKNOWN) {
-                } else {
-                    tokenexception(&t);
-                }
+                parse_declaration(&l, t);
             case TT_EOL:
                 break;
             default:

@@ -25,7 +25,8 @@ typedef enum {
 
 Func strtofunc(const char *str);
 Args parse_args(Lexer *l);
-void parse_block(Lexer *l);
+void parse_block(Lexer *l, const char *name);
+void parse_declaration(Lexer *l, Token t);
 void parse(const char *filepath);
 
 #endif
