@@ -3,6 +3,7 @@
 Func strtofunc(const char *str) {
     if (!strcmp(str, "load")) return FUNC_LOAD;
     else if (!strcmp(str, "play")) return FUNC_PLAY;
+    else if (!strcmp(str, "add_to_sequence")) return FUNC_ADDPAT;
     return FUNC_UNKNOWN;
 }
 
@@ -30,6 +31,7 @@ Args parse_args(Lexer *l) {
                 break;
             default:
                 DA_APPEND(&tokens, t);
+                break;
         }
     } while (t.type != TT_CB);
     return args;
@@ -127,7 +129,28 @@ void parse(const char *filepath) {
                 parse_block(&l, NULL);
                 break;
             case TT_WORD:
-                parse_declaration(&l, t);
+                Func f = strtofunc(t.value);
+                if (f == FUNC_ADDPAT) {
+                    Args args = parse_args(&l);
+                    for (size_t i = 0; i < args.count; ++i) {
+                        Tokens arg = args.items[i];
+                        if (arg.count != 1) {
+                            fprintf(stderr, "Error when parsing `add_to_sequence()` function arguments\n");
+                            exit(1);
+                        }
+                        Token argt = arg.items[0];
+                        if (argt.type != TT_WORD) {
+                            fprintf(stderr, "Error when parsing `add_to_sequence()` function arguments\n");
+                            exit(1);
+                        }
+                        addtosequence(argt.value);
+                    }
+                } else if (f == FUNC_UNKNOWN) {
+                    parse_declaration(&l, t);
+                } else {
+                    fprintf(stderr, "Error: unexpected function: %s\n", t.value);
+                    exit(1);
+                }
             case TT_EOL:
                 break;
             default:

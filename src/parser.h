@@ -20,6 +20,7 @@ typedef enum {
     FUNC_UNKNOWN,
     FUNC_LOAD,
     FUNC_PLAY,
+    FUNC_ADDPAT,
     FUNC_COUNT,
 } Func;
 

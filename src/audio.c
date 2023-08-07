@@ -1,7 +1,8 @@
 #include "audio.h"
 
 static Samples samples;
-Patterns patterns;
+static Patterns patterns;
+Sequence sequence;
 
 size_t framecount(const Pattern *p) {
     size_t total_frames = 0, frames;
@@ -68,9 +69,10 @@ size_t saveaudio(const char *filepath) {
 
     size_t total_frames = 0, offset = 0;
     Frame *buf = NULL;
-    for (size_t i = 0; i < patterns.count; ++i) {
-        Pattern *pat = &patterns.items[i];
-        total_frames += framecount(pat);
+    for (size_t i = 0; i < sequence.count; ++i) {
+        Pattern *pat = sequence.items[i];
+        size_t sum = offset + framecount(pat);
+        total_frames = sum > total_frames ? sum : total_frames;
         if (pat->count == 0) {
             continue;
         }
@@ -145,4 +147,14 @@ void addpattern(Pattern *pat, const char *name) {
     } else {
         DA_APPEND(&patterns, *pat);
     }
+}
+
+void addtosequence(const char *pattern_name) {
+    Pattern *p = NULL;
+    LINEAR_SEARCH(patterns, pattern_name, p);
+    if (!p) {
+        fprintf(stderr, "Error: pattern not found: %s", pattern_name);
+        exit(1);
+    }
+    DA_APPEND(&sequence, p);
 }

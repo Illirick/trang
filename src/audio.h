@@ -25,7 +25,7 @@ typedef float Frame;
     if ((da)->count >= (da)->capacity) {\
         if ((da)->capacity == 0) {\
             (da)->capacity = DA_INIT_CAP;\
-            (da)->items = malloc(DA_INIT_CAP);\
+            (da)->items = malloc(DA_INIT_CAP * sizeof(*(da)->items));\
         } else {\
             (da)->capacity *= 2;\
             (da)->items = realloc((da)->items, (da)->capacity * sizeof(*(da)->items));\
@@ -75,6 +75,12 @@ typedef struct {
     size_t capacity;
 } Patterns;
 
+typedef struct {
+    Pattern **items;
+    size_t count;
+    size_t capacity;
+} Sequence;
+
 size_t framecount(const Pattern *p);
 size_t rowtoframecount(size_t row);
 
@@ -86,5 +92,7 @@ float addsounds(float s1, float s2);
 size_t saveaudio(const char *filepath);
 void loadsample(const char *path, const char *name);
 void addpattern(Pattern *p, const char *name);
+
+void addtosequence(const char *pattern_name);
 
 #endif

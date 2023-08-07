@@ -100,7 +100,7 @@ bool lex_skipws(const Lexer *l) {
 bool lex_readword(const Lexer *l, char word[WORD_MAX_SZ]) {
     size_t j = 0;
     char c = lex_peek(l);
-    while(isalnum(c)) {
+    while(isalnum(c) || c == '_') {
         word[j++] = c;
         if (j >= WORD_MAX_SZ) {
             fprintf(stderr, "Error: word is too big for a keyword\n");
