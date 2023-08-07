@@ -1,5 +1,6 @@
 #include "audio.h"
 
+// TODO: combine into a structure?
 static Samples samples;
 static Patterns patterns;
 Sequence sequence;

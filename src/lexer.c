@@ -31,6 +31,13 @@ char* printablevalue(const Token *t) {
         return "<End of file>";
     } else if (t->type == TT_EOL) {
         return "<End of line>";
+    } else if (t->type == TT_STRLIT) {
+        char *value = (char*)malloc(strlen(t->value) + 3);
+        value[0] = '\0';
+        strcat(value, "\"");
+        strcat(value, t->value);
+        strcat(value, "\"");
+        return value;
     }
     return t->value;
 }

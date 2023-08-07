@@ -69,8 +69,11 @@ void parse_block(Lexer *l, const char *name) {
                 addsampleinstance(argt.value, &p, row - 1);
                 break;
             default:
-                fprintf(stderr, "Error: the only function allowed in music block is play function. But got: %s\n", printablevalue(&t));
-                exit(1);
+                if (t.type != TT_WORD) {
+                    fprintf(stderr, "Error: expected sample name or play function. But got: %s\n", printablevalue(&t));
+                    exit(1);
+                }
+                addsampleinstance(t.value, &p, row - 1);
                 break;
         }
         t = lex_next(l);
