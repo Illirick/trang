@@ -4,11 +4,7 @@
 #include "lexer.h"
 #include "audio.h"
 
-typedef struct {
-    Token *items;
-    size_t count;
-    size_t capacity;
-} Tokens;
+DA(Token);
 
 typedef struct {
     Tokens *items;

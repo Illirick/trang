@@ -43,37 +43,35 @@ typedef float Frame;
     }\
 } while (0)
 
+#define DA(type) \
+typedef struct {\
+    type *items;\
+    size_t count;\
+    size_t capacity;\
+} type##s;
+
 typedef struct {
     char name[WORD_MAX_SZ];
     Frame *frames;
     size_t count;
 } Sample;
+DA(Sample)
 
 typedef struct {
     Sample *sample;
     size_t pos;
 } SampleInstance;
-
-typedef struct {
-    Sample *items;
-    size_t count;
-    size_t capacity;
-} Samples;
+DA(SampleInstance)
 
 typedef struct {
     char name[WORD_MAX_SZ];
+    size_t rows;
 
     SampleInstance *items;
     size_t count;
     size_t capacity;
-    size_t rows;
 } Pattern;
-
-typedef struct {
-    Pattern *items;
-    size_t count;
-    size_t capacity;
-} Patterns;
+DA(Pattern)
 
 typedef struct {
     Pattern **items;
