@@ -32,14 +32,20 @@ char* printablevalue(const Token *t) {
     } else if (t->type == TT_EOL) {
         return "<End of line>";
     } else if (t->type == TT_STRLIT) {
-        char *value = (char*)malloc(strlen(t->value) + 3);
+        char *value = (char*)malloc(strlen(t->value.asStr) + 3);
         value[0] = '\0';
         strcat(value, "\"");
-        strcat(value, t->value);
+        strcat(value, t->value.asStr);
         strcat(value, "\"");
         return value;
+    } else if (t->type == TT_NUM) {
+        int l = snprintf(NULL, 0, "%zu", t->value.asNum);
+        assert(l >= 0);
+        char *str = calloc(l + 1, sizeof(char));
+        sprintf(str, "%zu", t->value.asNum);
+        return str;
     }
-    return t->value;
+    return t->value.asStr;
 }
 
 void tokenexception(const Token *t) {
@@ -110,7 +116,7 @@ bool lex_readword(const Lexer *l, char word[WORD_MAX_SZ]) {
     while((isalnum(c) || c == '_') && !BUF_EOF(l->buf)) {
         word[j++] = c;
         if (j >= WORD_MAX_SZ) {
-            fprintf(stderr, "Error: word is too big for a keyword %s\n", word);
+            fprintf(stderr, "Error: word is too big for a keyword: %s\n", word);
             exit(1);
         }
         c = lex_nextc(l);
@@ -136,18 +142,40 @@ bool lex_readstrlit(const Lexer *l, char str[STR_MAX_SZ]) {
     return true;
 }
 
+size_t lex_readnum(const Lexer *l) {
+    size_t num = 0;
+    char c = lex_peek(l);
+    while(isdigit(c) && !BUF_EOF(l->buf)) {
+        uint8_t digit = c-48;
+        if (num > (SIZE_MAX - digit) / 10) {
+            fprintf(stderr, "Error: too big of a number\n");
+            exit(1);
+        }
+        num *= 10;
+        num += digit;
+        c = lex_getc(l);
+    }
+    return num;
+}
+
 Token lex_next(const Lexer *l) {
     Token t = {0};
     if (lex_skipws(l)) return t;
     char c = lex_peek(l);
     TokenType lit_tt = literaltokens[(uint8_t) c];
     if (lit_tt != 0) {
-        t.value = (char*)calloc(2, sizeof(char));
-        t.value[0] = c;
+        t.value.asStr = (char*)calloc(2, sizeof(char));
+        t.value.asStr[0] = c;
         t.type = lit_tt;
 
         lex_incbuf(l);
         // printf("%s, %s\n", token_type_names[t.type], printablevalue(&t));
+        return t;
+    }
+    if (isdigit(c)) {
+        size_t num = lex_readnum(l);
+        t.type = TT_NUM;
+        t.value.asNum = num;
         return t;
     }
     switch(c) {
@@ -159,7 +187,7 @@ Token lex_next(const Lexer *l) {
             } else {
                 t.type = TT_INVALID;
             }
-            t.value = strdup(strlit);
+            t.value.asStr = strdup(strlit);
             break;
         default:
             char word[WORD_MAX_SZ] = {0};
@@ -169,7 +197,7 @@ Token lex_next(const Lexer *l) {
                 t.type = TT_INVALID;
                 lex_incbuf(l);
             }
-            t.value = strdup(word);
+            t.value.asStr = strdup(word);
             break;
     }
     // printf("%s, %s\n", token_type_names[t.type], printablevalue(&t));

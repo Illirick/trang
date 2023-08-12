@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdint.h>
+#include <assert.h>
 
 #define WORD_MAX_SZ 64
 #define STR_MAX_SZ 256
@@ -22,6 +23,7 @@ typedef enum {
     TT_EOL,
     TT_INVALID,
     TT_WORD,
+    TT_NUM,
     TT_STRLIT,
     TT_EQ,
     TT_OB,
@@ -32,13 +34,19 @@ typedef enum {
     TT_COUNT,
 } TokenType;
 
+typedef union {
+    char *asStr;
+    size_t asNum;
+} TokenValue;
+
 typedef struct {
     TokenType type;
-    char *value;
+    TokenValue value;
 } Token;
 
 typedef struct {
     char *data;
+
     size_t size;
     size_t pos;
 } Buffer;
@@ -60,6 +68,7 @@ char lex_nextc(const Lexer *l);
 bool lex_skipws(const Lexer *l);
 bool lex_readword(const Lexer *l, char word[WORD_MAX_SZ]);
 bool lex_readstrlit(const Lexer *l, char str[STR_MAX_SZ]);
+size_t lex_readnum(const Lexer *l);
 Token lex_next(const Lexer *l);
 void lex_expect(const Lexer *l, TokenType t);
 

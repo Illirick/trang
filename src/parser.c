@@ -1,6 +1,8 @@
 #include "parser.h"
 
-Func strtofunc(const char *str) {
+Func strtofunc(const Token *t) {
+    if (t->type == TT_NUM) return FUNC_UNKNOWN;
+    const char *str = t->value.asStr;
     if (!strcmp(str, "load")) return FUNC_LOAD;
     else if (!strcmp(str, "play")) return FUNC_PLAY;
     else if (!strcmp(str, "add_to_sequence")) return FUNC_ADDPAT;
@@ -50,7 +52,7 @@ void parse_block(Lexer *l, const char *name) {
             t = lex_next(l);
             continue;
         }
-        Func func = strtofunc(t.value);
+        Func func = strtofunc(&t);
         switch (func) {
             case FUNC_PLAY:
                 Args args = parse_args(l);
@@ -66,14 +68,14 @@ void parse_block(Lexer *l, const char *name) {
                 if (argt.type != TT_WORD) {
                     tokenexception(&argstoks.items[0]);
                 }
-                addsampleinstance(argt.value, &p, row - 1);
+                addsampleinstance(argt.value.asStr, &p, row - 1);
                 break;
             default:
                 if (t.type != TT_WORD) {
                     fprintf(stderr, "Error: expected sample name or play function. But got: %s\n", printablevalue(&t));
                     exit(1);
                 }
-                addsampleinstance(t.value, &p, row - 1);
+                addsampleinstance(t.value.asStr, &p, row - 1);
                 break;
         }
         t = lex_next(l);
@@ -82,15 +84,13 @@ void parse_block(Lexer *l, const char *name) {
     addpattern(&p, name);
 }
 
-void parse_declaration(Lexer *l, Token t) {
-    Func func = strtofunc(t.value);
-    if (func != FUNC_UNKNOWN) {
-        fprintf(stderr, "Error: unexpected function\n");
-        exit(1);
+void parse_declaration(Lexer *l, const Token *t) {
+    if (t->type != TT_WORD) {
+        tokenexception(t);
     }
     lex_expect(l, TT_EQ);
     Token value = lex_next(l);
-    func = strtofunc(value.value);
+    Func func = strtofunc(&value);
     if (func == FUNC_LOAD) {
         Args args = parse_args(l);
         if (args.count > 1) {
@@ -105,12 +105,12 @@ void parse_declaration(Lexer *l, Token t) {
         if (argt.type != TT_STRLIT) {
             tokenexception(&argstoks.items[0]);
         }
-        loadsample(argt.value, t.value);
+        loadsample(argt.value.asStr, t->value.asStr);
     } else if (func == FUNC_UNKNOWN) {
         lex_expect(l, TT_OCB);
-        parse_block(l, t.value);
+        parse_block(l, t->value.asStr);
     } else {
-        tokenexception(&t);
+        tokenexception(t);
     }
 }
 
@@ -132,7 +132,7 @@ void parse(const char *filepath) {
                 parse_block(&l, NULL);
                 break;
             case TT_WORD:
-                Func f = strtofunc(t.value);
+                Func f = strtofunc(&t);
                 if (f == FUNC_ADDPAT) {
                     Args args = parse_args(&l);
                     for (size_t i = 0; i < args.count; ++i) {
@@ -146,12 +146,12 @@ void parse(const char *filepath) {
                             fprintf(stderr, "Error when parsing `add_to_sequence()` function arguments\n");
                             exit(1);
                         }
-                        addtosequence(argt.value);
+                        addtosequence(argt.value.asStr);
                     }
                 } else if (f == FUNC_UNKNOWN) {
-                    parse_declaration(&l, t);
+                    parse_declaration(&l, &t);
                 } else {
-                    fprintf(stderr, "Error: unexpected function: %s\n", t.value);
+                    fprintf(stderr, "Error: unexpected function: %s\n", printablevalue(&t));
                     exit(1);
                 }
             case TT_EOL:

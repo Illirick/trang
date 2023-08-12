@@ -20,10 +20,10 @@ typedef enum {
     FUNC_COUNT,
 } Func;
 
-Func strtofunc(const char *str);
+Func strtofunc(const Token *t);
 Args parse_args(Lexer *l);
 void parse_block(Lexer *l, const char *name);
-void parse_declaration(Lexer *l, Token t);
+void parse_declaration(Lexer *l, const Token *t);
 void parse(const char *filepath);
 
 #endif

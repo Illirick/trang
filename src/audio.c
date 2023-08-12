@@ -138,7 +138,7 @@ void addpattern(Pattern *pat, const char *name) {
     } else {
         int numstrlength = snprintf(NULL, 0, "%zu", patterns.count);
         assert(numstrlength >= 0);
-        assert(numstrlength <= WORD_MAX_SZ);
+        assert(numstrlength <  WORD_MAX_SZ);
         sprintf(pat->name, "%zu", patterns.count);
     }
     Pattern *p = NULL;

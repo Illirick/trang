@@ -83,14 +83,15 @@ size_t framecount(const Pattern *p);
 size_t rowtoframecount(size_t row);
 
 void addsampleinstance(const char *sample_name, Pattern *pat, size_t row);
+float addsounds(float s1, float s2);
+void addpattern(Pattern *p, const char *name);
+void addtosequence(const char *pattern_name);
+
+size_t saveaudio(const char *filepath);
+void loadsample(const char *path, const char *name);
+
 // Not needed yet
 // float sinsound(float i, float freq, float volume, float samplerate);
 // float raisepitch(float base, float semitones);
-float addsounds(float s1, float s2);
-size_t saveaudio(const char *filepath);
-void loadsample(const char *path, const char *name);
-void addpattern(Pattern *p, const char *name);
-
-void addtosequence(const char *pattern_name);
 
 #endif
