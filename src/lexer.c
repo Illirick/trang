@@ -107,10 +107,10 @@ bool lex_skipws(const Lexer *l) {
 bool lex_readword(const Lexer *l, char word[WORD_MAX_SZ]) {
     size_t j = 0;
     char c = lex_peek(l);
-    while(isalnum(c) || c == '_') {
+    while((isalnum(c) || c == '_') && !BUF_EOF(l->buf)) {
         word[j++] = c;
         if (j >= WORD_MAX_SZ) {
-            fprintf(stderr, "Error: word is too big for a keyword\n");
+            fprintf(stderr, "Error: word is too big for a keyword %s\n", word);
             exit(1);
         }
         c = lex_nextc(l);
@@ -147,7 +147,7 @@ Token lex_next(const Lexer *l) {
         t.type = lit_tt;
 
         lex_incbuf(l);
-        // printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+        // printf("%s, %s\n", token_type_names[t.type], printablevalue(&t));
         return t;
     }
     switch(c) {
@@ -172,7 +172,7 @@ Token lex_next(const Lexer *l) {
             t.value = strdup(word);
             break;
     }
-    // printf("%s, %s\n", token_type_names[t.type], printable_value(&t));
+    // printf("%s, %s\n", token_type_names[t.type], printablevalue(&t));
     return t;
 }
 

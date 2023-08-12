@@ -12,7 +12,7 @@
 #define WORD_MAX_SZ 64
 #define STR_MAX_SZ 256
 
-#define BUF_SZ 1
+#define BUF_SZ 1024
 
 #define BUF_EOF(buf) ((buf)->pos >= (buf)->size)
 #define ARRLEN(arr) sizeof(arr)/sizeof(arr[0])
