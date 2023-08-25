@@ -1,3 +1,10 @@
+#include <math.h>
+#include <string.h>
+#include <errno.h>
+#include <assert.h>
+
+#include <sndfile.h>
+
 #include "audio.h"
 
 // TODO: combine into a structure?

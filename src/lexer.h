@@ -1,14 +1,11 @@
 #ifndef LEXER_H_
 #define LEXER_H_
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdint.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 
 #define WORD_MAX_SZ 64
 #define STR_MAX_SZ 256

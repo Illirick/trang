@@ -2,7 +2,7 @@
 #define PARSER_H_
 
 #include "lexer.h"
-#include "audio.h"
+#include "util.h"
 
 DA(Token);
 

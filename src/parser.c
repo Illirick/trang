@@ -1,4 +1,7 @@
+#include <string.h>
+
 #include "parser.h"
+#include "audio.h"
 
 Func strtofunc(const Token *t) {
     if (t->type == TT_NUM) return FUNC_UNKNOWN;

@@ -2,12 +2,8 @@
 #define AUDIO_H_
 
 #include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include <errno.h>
-#include <assert.h>
 
-#include <sndfile.h>
+#include "util.h"
 
 #define SAMPLE_RATE 44100
 #define DEFAULT_BPM 140
@@ -19,22 +15,7 @@ typedef float Frame;
 
 #define WORD_MAX_SZ 64
 
-#define DA_INIT_CAP 128
-
-#define DA_APPEND(da, item) do {\
-    if ((da)->count >= (da)->capacity) {\
-        if ((da)->capacity == 0) {\
-            (da)->capacity = DA_INIT_CAP;\
-            (da)->items = malloc(DA_INIT_CAP * sizeof(*(da)->items));\
-        } else {\
-            (da)->capacity *= 2;\
-            (da)->items = realloc((da)->items, (da)->capacity * sizeof(*(da)->items));\
-        }\
-        assert((da)->items != NULL);\
-    }\
-    (da)->items[(da)->count++] = item;\
-} while (0)
-
+// TODO: generalize somehow
 #define LINEAR_SEARCH(arr, item_name, var) do {\
     for (size_t iter = 0; iter < (arr).count; ++iter) {\
         if (!strcmp((arr).items[iter].name, (item_name))) {\
@@ -42,13 +23,6 @@ typedef float Frame;
         }\
     }\
 } while (0)
-
-#define DA(type) \
-typedef struct {\
-    type *items;\
-    size_t count;\
-    size_t capacity;\
-} type##s;
 
 typedef struct {
     char name[WORD_MAX_SZ];

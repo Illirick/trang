@@ -1,3 +1,8 @@
+#include <ctype.h>
+#include <string.h>
+#include <stdint.h>
+#include <assert.h>
+
 #include "lexer.h"
 
 static char *token_type_names[TT_COUNT] = {
