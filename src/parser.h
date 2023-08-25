@@ -1,4 +1,4 @@
-#ifndef PARSR_H_
+#ifndef PARSER_H_
 #define PARSER_H_
 
 #include "lexer.h"
@@ -17,6 +17,7 @@ typedef enum {
     FUNC_LOAD,
     FUNC_PLAY,
     FUNC_ADDPAT,
+    FUNC_BPM,
     FUNC_COUNT,
 } Func;
 

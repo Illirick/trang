@@ -9,8 +9,8 @@
 
 #include <sndfile.h>
 
-#define SAMPLE_RATE       44100
-#define BPM               140
+#define SAMPLE_RATE 44100
+#define DEFAULT_BPM 140
 
 typedef float Frame;
 
@@ -57,17 +57,29 @@ typedef struct {
 } Sample;
 DA(Sample)
 
+typedef enum {
+    PT_NONE,
+    PT_BPM,
+    PT_COUNT,
+} ParameterType;
+
+typedef struct {
+    ParameterType type;
+    float value;
+} ParameterChange;
+
 typedef struct {
     Sample *sample;
-    size_t pos;
-} SampleInstance;
-DA(SampleInstance)
+    ParameterChange pc;
+    size_t row;
+} AudioObject;
+DA(AudioObject)
 
 typedef struct {
     char name[WORD_MAX_SZ];
     size_t rows;
 
-    SampleInstance *items;
+    AudioObject *items;
     size_t count;
     size_t capacity;
 } Pattern;
@@ -79,11 +91,8 @@ typedef struct {
     size_t capacity;
 } Sequence;
 
-size_t framecount(const Pattern *p);
-size_t rowtoframecount(size_t row);
-
 void addsampleinstance(const char *sample_name, Pattern *pat, size_t row);
-float addsounds(float s1, float s2);
+void addbpmchange(float value, Pattern *pat, size_t row);
 void addpattern(Pattern *p, const char *name);
 void addtosequence(const char *pattern_name);
 

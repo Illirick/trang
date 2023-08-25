@@ -3,25 +3,42 @@
 // TODO: combine into a structure?
 static Samples samples;
 static Patterns patterns;
+static float bpm = DEFAULT_BPM;
 Sequence sequence;
 
-size_t framecount(const Pattern *p) {
-    size_t total_frames = 0, frames;
+static size_t framesperrow() {
+    //       60 seconds per minute
+    // ---------------------------------- * samples per second (or sample rate) * 2 samples per channel
+    // 4 rows per beat * beats per minute
+    return (60 / 4 / (float)bpm) * SAMPLE_RATE * 2;
+}
+
+static size_t rowtoframe(size_t row) {
+    return row * framesperrow();
+}
+
+static size_t framecount(const Pattern *p) {
+    size_t total_frames = 0, frames, offset = 0, ralbc = 0, oldbpm = bpm;
     for (size_t i = 0; i < p->count; ++i) {
-        frames = p->items[i].pos + p->items[i].sample->count;
-        if (frames > total_frames) {
-            total_frames = frames;
+        AudioObject ao = p->items[i];
+        if (ao.sample != NULL) {
+            frames = offset + rowtoframe(ao.row - ralbc) + ao.sample->count;
+            total_frames = frames > total_frames ? frames : total_frames;
+        }
+        if (ao.pc.type == PT_BPM) {
+            offset += rowtoframe(ao.row - ralbc);
+            bpm = ao.pc.value;
+            ralbc = ao.row;
         }
     }
-    if (total_frames % 2 != 0) total_frames ++;
+    // size_t min_frames = rowtoframecount(p->rows) - 1;
+    // total_frames = total_frames > min_frames ? total_frames : min_frames;
+    bpm = oldbpm;
     return total_frames;
 }
 
-size_t rowtoframecount(size_t row) {
-    //      row          60 seconds per minute
-    // --------------- * --------------------- * samples per second (or sample rate) * 2 samples per channel
-    // 4 rows per beat     beats per minute
-    return ((float)row / 4 * 60 / BPM) * SAMPLE_RATE * 2;
+static float addsounds(float s1, float s2) {
+    return ((double)s1 - (0xFFFF / 2 - 1) + (double)s2 - (0xFFFF / 2 - 1)) / 2 + (0xFFFF / 2 - 1);
 }
 
 void addsampleinstance(const char *sample_name, Pattern *pat, size_t row) {
@@ -38,8 +55,14 @@ void addsampleinstance(const char *sample_name, Pattern *pat, size_t row) {
         exit(1);
     }
 
-    SampleInstance si = { s, rowtoframecount(row) };
-    DA_APPEND(pat, si);
+    AudioObject ao = { .sample=s, .row=row };
+    DA_APPEND(pat, ao);
+}
+
+void addbpmchange(float value, Pattern *pat, size_t row) {
+    ParameterChange pc  = { .type=PT_BPM, .value=value };
+    AudioObject ao = { .sample=NULL, .pc=pc, .row=row };
+    DA_APPEND(pat, ao);
 }
 
 float sinsound(float i, float freq, float volume, float samplerate) {
@@ -48,10 +71,6 @@ float sinsound(float i, float freq, float volume, float samplerate) {
 
 float raisepitch(float base, float semitones) {
     return base * pow(2, 1/semitones);
-}
-
-float addsounds(float s1, float s2) {
-    return ((double)s1 - (0xFFFF / 2 - 1) + (double)s2 - (0xFFFF / 2 - 1)) / 2 + (0xFFFF / 2 - 1);
 }
 
 size_t saveaudio(const char *filepath) {
@@ -68,10 +87,10 @@ size_t saveaudio(const char *filepath) {
         exit(1);
     }
 
-    size_t total_frames = 0, offset = 0;
+    size_t total_frames = 0, offset = 0, ralbc = 0;
     Frame *buf = NULL;
-    for (size_t i = 0; i < sequence.count; ++i) {
-        Pattern *pat = sequence.items[i];
+    for (size_t pi = 0; pi < sequence.count; ++pi) {
+        Pattern *pat = sequence.items[pi];
         size_t sum = offset + framecount(pat);
         total_frames = sum > total_frames ? sum : total_frames;
         if (pat->count == 0) {
@@ -85,15 +104,27 @@ size_t saveaudio(const char *filepath) {
             exit(1);
         }
 
-        for (size_t i = 0; i < pat->count; ++i) {
-            SampleInstance *si = &pat->items[i];
-            for (size_t i = 0; i < si->sample->count; ++i) {
-                size_t pos = si->pos + i + offset;
-                buf[pos] = addsounds(buf[pos], si->sample->frames[i]);
+        for (size_t si = 0; si < pat->count; ++si) {
+            AudioObject ao = pat->items[si];
+            Sample *s = ao.sample;
+            if (s != NULL) {
+                assert(ao.row >= ralbc);
+                size_t pos = offset + rowtoframe(ao.row - ralbc);
+                for (size_t fi = 0; fi < s->count; ++fi) {
+                    buf[pos + fi] = addsounds(buf[pos + fi], s->frames[fi]);
+                }
+            }
+            if (ao.pc.type == PT_BPM) {
+                offset += rowtoframe(ao.row - ralbc);
+                bpm = ao.pc.value;
+                ralbc = ao.row;
             }
         }
-        offset += rowtoframecount(pat->rows);
+        assert(pat->rows >= ralbc);
+        offset += (pat->rows - ralbc) * framesperrow();
+        ralbc = 0;
     }
+    if (total_frames % 2 != 0) total_frames ++;
     if ((int) total_frames != sf_write_float(file, buf, total_frames)) {
         fprintf(stderr, "Error while writing to the file %s: %s\n", filepath, sf_strerror(file));
         sf_close(file);
@@ -132,6 +163,7 @@ void loadsample(const char *path, const char *name) {
         DA_APPEND(&samples, sample);
     }
 }
+
 void addpattern(Pattern *pat, const char *name) {
     if (name) {
         memcpy(pat->name, name, WORD_MAX_SZ - 1);
@@ -154,7 +186,7 @@ void addtosequence(const char *pattern_name) {
     Pattern *p = NULL;
     LINEAR_SEARCH(patterns, pattern_name, p);
     if (!p) {
-        fprintf(stderr, "Error: pattern not found: %s", pattern_name);
+        fprintf(stderr, "Error: pattern not found: %s\n", pattern_name);
         exit(1);
     }
     DA_APPEND(&sequence, p);

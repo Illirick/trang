@@ -6,6 +6,7 @@ Func strtofunc(const Token *t) {
     if (!strcmp(str, "load")) return FUNC_LOAD;
     else if (!strcmp(str, "play")) return FUNC_PLAY;
     else if (!strcmp(str, "add_to_sequence")) return FUNC_ADDPAT;
+    else if (!strcmp(str, "set_bpm")) return FUNC_BPM;
     return FUNC_UNKNOWN;
 }
 
@@ -40,6 +41,7 @@ Args parse_args(Lexer *l) {
 }
 
 void parse_block(Lexer *l, const char *name) {
+    lex_expect(l, TT_EOL);
     Token t = lex_next(l);
     size_t row = 0;
     Pattern p = {0};
@@ -68,19 +70,35 @@ void parse_block(Lexer *l, const char *name) {
                 if (argt.type != TT_WORD) {
                     tokenexception(&argstoks.items[0]);
                 }
-                addsampleinstance(argt.value.asStr, &p, row - 1);
+                addsampleinstance(argt.value.asStr, &p, row);
+                break;
+            case FUNC_BPM:
+                args = parse_args(l);
+                if (args.count > 1) {
+                    fprintf(stderr, "Error: too many arguments\n");
+                    exit(1);
+                }
+                argstoks = args.items[0];
+                if (argstoks.count > 1) {
+                    tokenexception(&argstoks.items[1]);
+                }
+                argt = argstoks.items[0];
+                if (argt.type != TT_NUM) {
+                    tokenexception(&argstoks.items[0]);
+                }
+                addbpmchange(argt.value.asNum, &p, row);
                 break;
             default:
                 if (t.type != TT_WORD) {
                     fprintf(stderr, "Error: expected sample name or play function. But got: %s\n", printablevalue(&t));
                     exit(1);
                 }
-                addsampleinstance(t.value.asStr, &p, row - 1);
+                addsampleinstance(t.value.asStr, &p, row);
                 break;
         }
         t = lex_next(l);
     }
-    p.rows = row - 1;
+    p.rows = row;
     addpattern(&p, name);
 }
 

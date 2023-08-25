@@ -12,10 +12,9 @@ static char *token_type_names[TT_COUNT] = {
     [TT_OCB] = "opening curly bracket",
     [TT_CCB] = "closing curly bracket",
     [TT_COMMA] = "comma",
+    [TT_EXCLMARK] = "comma",
 };
 
-// Seems like it zero-initializes all the other elements since
-// it's a global variable and I hope this is not UB
 TokenType literaltokens[256] = {
     ['\n'] = TT_EOL,
     ['='] = TT_EQ,
@@ -24,6 +23,7 @@ TokenType literaltokens[256] = {
     ['{'] = TT_OCB,
     ['}'] = TT_CCB,
     [','] = TT_COMMA,
+    ['!'] = TT_COMMA,
 };
 
 char* printablevalue(const Token *t) {
@@ -153,7 +153,7 @@ size_t lex_readnum(const Lexer *l) {
         }
         num *= 10;
         num += digit;
-        c = lex_getc(l);
+        c = lex_nextc(l);
     }
     return num;
 }
