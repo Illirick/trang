@@ -37,4 +37,4 @@ Whatever is in the hello world plus setting bpm through the function `set_bpm()`
 
 ### More about music blocks
 
-Everything inside curly braces is music block. Each line corresponds to 1/16th note (will be configurable in the future) and you can have multiple samples on the same line. Also you should start writing on the newline after `{` as in the hello world example.
+Everything inside curly braces is a music block. Each line corresponds to 1/16th note (will be configurable in the future) and you can have multiple samples on the same line. Also you should start writing on the newline after `{` as in the hello world example.
