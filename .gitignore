@@ -2,3 +2,6 @@
 *.trang
 *.wav
 bin/*
+
+# for now
+examples
